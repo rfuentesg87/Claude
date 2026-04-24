@@ -2,18 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Repository Status
+## Stack
 
-This repository is currently empty and in its initial state. No source code, build system, or tooling has been established yet.
+Python 3 — no external dependencies.
 
-## Getting Started
+## Commands
 
-When adding code to this repository, update this file to document:
+```bash
+# Run the app
+python3 main.py
+```
 
-- **Build commands** — how to compile, bundle, or prepare the project
-- **Test commands** — how to run the full test suite and how to run a single test
-- **Lint/format commands** — the linter and formatter in use and their invocation
-- **Architecture overview** — the high-level structure and key design decisions
+## Architecture
+
+Single-file application (`main.py`). Entry point is `main()`, called via `if __name__ == "__main__"`.
 
 ## Development Branch
 
