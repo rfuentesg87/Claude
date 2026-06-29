@@ -1,0 +1,511 @@
+{
+  "name": "TEMP3 - Fix tracking + registro GENERICO",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "11111111-0001-0001-0001-111111111111",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.businesscentral.dynamics.com/v2.0/5d57f2ac-22ea-444e-9f5e-de4a5c4b31ce/Production/ODataV4/Company('JOMIPSA')/MNItemJrnlBatch",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "$filter",
+              "value": "Journal_Template_Name eq 'PRODUCTO' and Name eq 'GENERICO'"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "oAuth2Api": {
+          "id": "3VCcXQISXDCvVLQ4",
+          "name": "BC API"
+        }
+      },
+      "id": "11111111-0002-0002-0002-111111111111",
+      "name": "GET Batch GENERICO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// *** AJUSTAR DOC_NO si la serie ha avanzado por un nuevo fallo de POST ***\n// Historial: DP0002332 → serie avanzó a DP0002333 en exec 1217.\n// Si vuelve a fallar el POST, incrementar aquí (DP0002334, etc.)\nconst DOC_NO = 'DP0002333';\n\nconst batchRaw = $input.first().json;\nreturn [{ json: { docNo: DOC_NO, batchRaw } }];"
+      },
+      "id": "11111111-0003-0003-0003-111111111111",
+      "name": "Set DocNo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.businesscentral.dynamics.com/v2.0/5d57f2ac-22ea-444e-9f5e-de4a5c4b31ce/Production/ODataV4/Company('JOMIPSA')/MNItemTrackingLine",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "$filter",
+              "value": "Source_Type eq 83 and Source_ID eq 'PRODUCTO' and Source_Batch_Name eq 'GENERICO' and Source_Ref_No eq 1779540000"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "oAuth2Api": {
+          "id": "3VCcXQISXDCvVLQ4",
+          "name": "BC API"
+        }
+      },
+      "id": "11111111-0004-0004-0004-111111111111",
+      "name": "GET Tracking P220510",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Evaluar tracking line de line 1779540000 (P220510)\n// Paquete correcto: 334778 | Incorrecto: 333364 (sin stock en 34-MERMACADENA)\nconst resp = $input.first().json;\nconst lines = resp.value || [];\nconst existing = lines.length > 0 ? lines[0] : null;\n\nlet needs_fix = false;\nlet has_existing = false;\nlet existing_pkg = null;\nlet etag_url = null;\n\nif (existing) {\n  has_existing = true;\n  existing_pkg = existing.Package_No;\n  // @odata.id provee la URL canónica para DELETE en BC OData\n  etag_url = existing['@odata.id'] || null;\n  needs_fix = existing_pkg !== '334778';\n} else {\n  needs_fix = true; // no existe → crear\n}\n\nconsole.log(`Tracking P220510: has_existing=${has_existing}, existing_pkg=${existing_pkg}, needs_fix=${needs_fix}`);\n\nreturn [{ json: { needs_fix, has_existing, existing_pkg, etag_url } }];"
+      },
+      "id": "11111111-0005-0005-0005-111111111111",
+      "name": "Evaluar Tracking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-001",
+              "leftValue": "={{ $json.needs_fix }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "11111111-0006-0006-0006-111111111111",
+      "name": "IF Necesita Fix",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ $json.etag_url || \"https://api.businesscentral.dynamics.com/v2.0/5d57f2ac-22ea-444e-9f5e-de4a5c4b31ce/Production/ODataV4/Company('JOMIPSA')/MNItemTrackingLine(Source_Type=83,Source_ID='PRODUCTO',Source_Batch_Name='GENERICO',Source_Prod_Order_Line=0,Source_Ref_No=1779540000)\" }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "If-Match",
+              "value": "*"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "oAuth2Api": {
+          "id": "3VCcXQISXDCvVLQ4",
+          "name": "BC API"
+        }
+      },
+      "id": "11111111-0007-0007-0007-111111111111",
+      "name": "DELETE Tracking Incorrecta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1320, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.businesscentral.dynamics.com/v2.0/5d57f2ac-22ea-444e-9f5e-de4a5c4b31ce/Production/ODataV4/Company('JOMIPSA')/MNItemTrackingLine",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "{\"Source_Type\":83,\"Source_Subtype\":\"3\",\"Source_ID\":\"PRODUCTO\",\"Source_Batch_Name\":\"GENERICO\",\"Source_Prod_Order_Line\":0,\"Source_Ref_No\":1779540000,\"Lot_No\":\"260413\",\"Package_No\":\"334778\",\"Quantity_Base\":1}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "oAuth2Api": {
+          "id": "3VCcXQISXDCvVLQ4",
+          "name": "BC API"
+        }
+      },
+      "id": "11111111-0008-0008-0008-111111111111",
+      "name": "POST Tracking Correcta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1540, 180]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.businesscentral.dynamics.com/v2.0/5d57f2ac-22ea-444e-9f5e-de4a5c4b31ce/Production/ODataV4/Company('JOMIPSA')/ItemJournalWithReason",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "$filter",
+              "value": "Journal_Template_Name eq 'PRODUCTO' and Journal_Batch_Name eq 'GENERICO'"
+            },
+            {
+              "name": "$select",
+              "value": "Journal_Template_Name,Journal_Batch_Name,Line_No,Item_No,Document_No,Lot_No,Package_No"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "oAuth2Api": {
+          "id": "3VCcXQISXDCvVLQ4",
+          "name": "BC API"
+        }
+      },
+      "id": "11111111-0009-0009-0009-111111111111",
+      "name": "GET Lineas Diario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1760, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construir lista de PATCHes para todas las líneas del diario PRODUCTO/GENERICO\nconst docNo = $('Set DocNo').first().json.docNo;\n\nconst LINE_LOT_MAP = {\n  1779519000: '26071', 1779522000: 'P358', 1779523000: '44682',\n  1779524000: '5S10232', 1779525000: '43665701', 1779526000: '43665701',\n  1779529000: 'IM202505', 1779530000: 'SP126055079', 1779531000: 'Y415',\n  1779534000: '25455', 1779536000: '260209', 1779537000: '260209',\n  1779538000: '260129', 1779539000: '250704', 1779540000: '260413',\n  1779541000: 'IM202432', 1779542000: '3140725', 1779543000: '3140725',\n  1779544000: 'KSK02350', 1779545000: 'IM202534', 1779546000: '2603',\n  1779547000: '2502227', 1779548000: 'IM202504', 1779549000: '241004',\n  1779550000: '3212', 1779551000: '260026', 1779553000: '260368',\n  1779554000: '2601', 1779557000: '26338', 1779559000: '260324',\n  1779560000: '260324', 1779561000: '26099', 1779562000: '2585',\n  1779563000: 'QL04', 1779564000: '25231', 1779565000: '241A',\n  1779566000: '25L08874'\n};\n\nconst LINE_PKG_MAP = {\n  1779519000: '332326', 1779520000: 'E247682', 1779521000: 'E305525',\n  1779522000: '321733', 1779523000: 'E281617', 1779524000: '324233',\n  1779525000: 'E276458', 1779526000: 'E276459', 1779527000: 'E276314',\n  1779528000: '323410', 1779529000: 'E284880', 1779530000: '330640',\n  1779531000: 'E310805', 1779532000: 'E310831', 1779533000: 'E278038',\n  1779534000: '328867', 1779535000: 'E312587', 1779536000: '322257',\n  1779537000: '331696', 1779538000: '321358', 1779539000: 'E288129',\n  1779540000: '334778',   // CORRECTO: pkg 334778 tiene stock en 34-MERMACADENA\n  1779541000: 'E304850',  // Package read-only en PATCH, ignorar error si aparece\n  1779542000: '327952', 1779543000: '330752', 1779544000: '328490',\n  1779545000: 'E306167', 1779546000: '332039', 1779547000: 'E289995',\n  1779548000: 'E285098', 1779549000: 'E276319', 1779550000: 'E273598',\n  1779551000: '322190', 1779552000: '330002', 1779553000: '329861',\n  1779554000: '330768', 1779555000: 'E284884', 1779556000: '328844',\n  1779557000: '325304', 1779558000: 'E295742', 1779559000: '330097',\n  1779560000: '330066', 1779561000: '332041', 1779562000: 'E302282',\n  1779563000: 'E312790', 1779564000: 'E293640', 1779565000: 'E314224',\n  1779566000: 'E304112'\n};\n\nconst BASE = \"https://api.businesscentral.dynamics.com/v2.0/5d57f2ac-22ea-444e-9f5e-de4a5c4b31ce/Production/ODataV4/Company('JOMIPSA')/ItemJournalWithReason\";\n\nconst lines = $input.first().json.value || [];\nconsole.log(`Preparando patches para ${lines.length} líneas con Document_No=${docNo}`);\n\nreturn lines.map(line => {\n  const lineNo = line.Line_No;\n  const body = { Document_No: docNo };\n  const lotNo = LINE_LOT_MAP[lineNo];\n  const pkgNo = LINE_PKG_MAP[lineNo];\n\n  if (lotNo) body.Lot_No = lotNo;\n  // Line 10000 (P000810) no está en LINE_PKG_MAP → Package_No no se incluye → correcto\n  // Esto evita el error \"Control 'Package No.' is read-only\"\n  if (pkgNo) body.Package_No = pkgNo;\n\n  const url = `${BASE}(Journal_Template_Name='PRODUCTO',Journal_Batch_Name='GENERICO',Line_No=${lineNo})`;\n  return { json: { lineNo, itemNo: line.Item_No, url, body: JSON.stringify(body) } };\n});"
+      },
+      "id": "11111111-0010-0010-0010-111111111111",
+      "name": "Preparar Patches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "If-Match",
+              "value": "*"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "oAuth2Api": {
+          "id": "3VCcXQISXDCvVLQ4",
+          "name": "BC API"
+        }
+      },
+      "id": "11111111-0011-0011-0011-111111111111",
+      "name": "PATCH Lineas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verificar resultados de patches. Errores ignorables: Planning Assignment, Package No. read-only.\nconst results = $input.all();\n\nconst IGNORED = ['Planning Assignment', \"Package No.'\"];\n\nconst failures = results.filter(r => {\n  const sc = r.json.statusCode;\n  if (!sc || sc < 300) return false;\n  const msg = r.json.body?.error?.message || JSON.stringify(r.json.body || '');\n  return !IGNORED.some(p => msg.includes(p));\n});\n\nconst ignored = results.filter(r => {\n  const sc = r.json.statusCode;\n  if (!sc || sc < 300) return false;\n  const msg = r.json.body?.error?.message || JSON.stringify(r.json.body || '');\n  return IGNORED.some(p => msg.includes(p));\n});\n\nconst ok = results.filter(r => !r.json.statusCode || r.json.statusCode < 300);\n\nconsole.log(`Patches: ${ok.length} OK, ${ignored.length} ignorados, ${failures.length} FALLOS reales`);\n\nif (failures.length > 0) {\n  const msgs = failures.slice(0, 5).map(r => {\n    const msg = r.json.body?.error?.message || JSON.stringify(r.json.body);\n    return `SC=${r.json.statusCode}: ${msg}`;\n  });\n  throw new Error('Patches no recuperables: ' + msgs.join(' | '));\n}\n\nreturn [{ json: { patches_ok: ok.length, patches_ignored: ignored.length, ready_to_post: true } }];"
+      },
+      "id": "11111111-0012-0012-0012-111111111111",
+      "name": "Verificar Patches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.businesscentral.dynamics.com/v2.0/5d57f2ac-22ea-444e-9f5e-de4a5c4b31ce/Production/ODataV4/Company('JOMIPSA')/MNItemJrnlBatch(Journal_Template_Name='PRODUCTO',Name='GENERICO')/NAV.PostItemJournal",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "{}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "oAuth2Api": {
+          "id": "3VCcXQISXDCvVLQ4",
+          "name": "BC API"
+        }
+      },
+      "id": "11111111-0013-0013-0013-111111111111",
+      "name": "POST Registrar Diario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-002",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 204,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "11111111-0014-0014-0014-111111111111",
+      "name": "IF Exito 204",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2860, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "resultado",
+              "value": "✅ REGISTRO EXITOSO",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "document_no",
+              "value": "={{ $('Set DocNo').first().json.docNo }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "verificacion_sql",
+              "value": "={{ 'SELECT COUNT(*) FROM bc.[Item Ledger Entry] WHERE [Document No.] = \\'' + $('Set DocNo').first().json.docNo + '\\'' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "11111111-0015-0015-0015-111111111111",
+      "name": "Set Exito",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [3080, 180]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "resultado",
+              "value": "❌ ERROR AL REGISTRAR",
+              "type": "string"
+            },
+            {
+              "id": "b2",
+              "name": "statusCode",
+              "value": "={{ $json.statusCode }}",
+              "type": "number"
+            },
+            {
+              "id": "b3",
+              "name": "error_message",
+              "value": "={{ $json.body?.error?.message || JSON.stringify($json.body) }}",
+              "type": "string"
+            },
+            {
+              "id": "b4",
+              "name": "accion",
+              "value": "Si el error es 'Document No. must be equal to DPxxxxxxx': actualizar DOC_NO en nodo 'Set DocNo' con el número indicado. Si es 'insufficient quantity': verificar tracking line de P220510.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "11111111-0016-0016-0016-111111111111",
+      "name": "Set Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [3080, 420]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [{ "node": "GET Batch GENERICO", "type": "main", "index": 0 }]
+      ]
+    },
+    "GET Batch GENERICO": {
+      "main": [
+        [{ "node": "Set DocNo", "type": "main", "index": 0 }]
+      ]
+    },
+    "Set DocNo": {
+      "main": [
+        [{ "node": "GET Tracking P220510", "type": "main", "index": 0 }]
+      ]
+    },
+    "GET Tracking P220510": {
+      "main": [
+        [{ "node": "Evaluar Tracking", "type": "main", "index": 0 }]
+      ]
+    },
+    "Evaluar Tracking": {
+      "main": [
+        [{ "node": "IF Necesita Fix", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF Necesita Fix": {
+      "main": [
+        [{ "node": "DELETE Tracking Incorrecta", "type": "main", "index": 0 }],
+        [{ "node": "GET Lineas Diario", "type": "main", "index": 0 }]
+      ]
+    },
+    "DELETE Tracking Incorrecta": {
+      "main": [
+        [{ "node": "POST Tracking Correcta", "type": "main", "index": 0 }]
+      ]
+    },
+    "POST Tracking Correcta": {
+      "main": [
+        [{ "node": "GET Lineas Diario", "type": "main", "index": 0 }]
+      ]
+    },
+    "GET Lineas Diario": {
+      "main": [
+        [{ "node": "Preparar Patches", "type": "main", "index": 0 }]
+      ]
+    },
+    "Preparar Patches": {
+      "main": [
+        [{ "node": "PATCH Lineas", "type": "main", "index": 0 }]
+      ]
+    },
+    "PATCH Lineas": {
+      "main": [
+        [{ "node": "Verificar Patches", "type": "main", "index": 0 }]
+      ]
+    },
+    "Verificar Patches": {
+      "main": [
+        [{ "node": "POST Registrar Diario", "type": "main", "index": 0 }]
+      ]
+    },
+    "POST Registrar Diario": {
+      "main": [
+        [{ "node": "IF Exito 204", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF Exito 204": {
+      "main": [
+        [{ "node": "Set Exito", "type": "main", "index": 0 }],
+        [{ "node": "Set Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
