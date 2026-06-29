@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "MSSQL MCP": {
+      "command": "npx",
+      "args": ["-y", "mssql-mcp"],
+      "env": {
+        "CONNECTION_STRING": "Server=tcp:sqlserver-jomipsapde-prod-westeu-001.database.windows.net,1433;Initial Catalog=sqldb-jomipsapde-prod-westeu-001;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;User ID=PENDIENTE;Password=PENDIENTE"
+      }
+    },
+    "n8n-mcp": {
+      "command": "npx",
+      "args": ["-y", "n8n-mcp"],
+      "env": {
+        "N8N_API_URL": "https://jomipsa.app.n8n.cloud",
+        "N8N_API_KEY": "PENDIENTE"
+      }
+    }
+  }
+}
