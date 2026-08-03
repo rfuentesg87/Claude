@@ -72,11 +72,14 @@ jobs:
             # Real login: POST the seeded credentials, keep the cookie jar, then
             # request a protected page. A Secure-only cookie over HTTP would send
             # us back to /login and this check would fail.
+            # Let the 302 be followed: with -MaximumRedirection 0 PowerShell 7
+            # raises instead of returning the response, and -SkipHttpErrorCheck
+            # does not suppress that.
             Invoke-WebRequest "http://127.0.0.1:8123/login" -UseBasicParsing `
               -Method POST -Body @{username="User"; password="Cambiar2025!!!"} `
-              -SessionVariable sess -MaximumRedirection 0 -SkipHttpErrorCheck | Out-Null
-            $home = Invoke-WebRequest "http://127.0.0.1:8123/" -UseBasicParsing -WebSession $sess -TimeoutSec 10
-            if ($home.Content -notmatch "Ordenes de Produccion|rdenes de Produ") {
+              -SessionVariable sess -TimeoutSec 10 | Out-Null
+            $homePage = Invoke-WebRequest "http://127.0.0.1:8123/" -UseBasicParsing -WebSession $sess -TimeoutSec 10
+            if ($homePage.Content -notmatch "rdenes de Produ") {
               Write-Host "--- stdout ---"; Get-Content exe-out.log -ErrorAction SilentlyContinue
               throw "El login no mantuvo la sesion (la pagina principal no se sirvio)"
             }
