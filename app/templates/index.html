@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="layout">
+  <!-- Left: OP picker with client-side search -->
+  <aside class="sidebar">
+    <h2>Órdenes de Producción abiertas</h2>
+    <input type="search" id="op-search" placeholder="Buscar OP, artículo, almacén…" autocomplete="off">
+    <ul class="op-list">
+      {% for op in ops %}
+      <li>
+        <a href="{{ url_for('main.index', op=op.ProductionOrderNo) }}"
+           class="op-item {{ 'active' if op.ProductionOrderNo == selected_op }}"
+           data-search="{{ op.OPDisplayLabel|lower }}">
+          <span class="op-no">{{ op.ProductionOrderNo }}</span>
+          <span class="op-desc">{{ op.ItemNo }} · {{ op.ItemDescription }}</span>
+          <span class="op-meta">{{ op.LocationCode }} · Vence {{ op.DueDate|fecha }}</span>
+        </a>
+      </li>
+      {% else %}
+      <li class="muted">No hay OPs abiertas.</li>
+      {% endfor %}
+    </ul>
+  </aside>
+
+  <!-- Right: form + history -->
+  <section class="panel">
+    {% if not selected_op %}
+      <div class="empty">
+        <p>Selecciona una Orden de Producción de la lista para registrar líneas.</p>
+      </div>
+    {% else %}
+      <div class="op-header">
+        <h1>OP {{ selected_op }}</h1>
+        {% if op_info %}
+          <p class="muted">{{ op_info.ItemNo }} · {{ op_info.ItemDescription }}
+             · Almacén {{ op_info.LocationCode }}
+             · Planificado {{ op_info.CantidadPlanificada|num }}</p>
+        {% else %}
+          <p class="warn">Esta OP ya no figura como abierta en BC (solo consulta).</p>
+        {% endif %}
+      </div>
+
+      <form id="line-form" class="line-form"
+            data-op="{{ selected_op }}"
+            data-mode="{{ 'update' if edit_line else 'insert' }}"
+            data-id="{{ edit_line.RegistroProduccionTempId if edit_line else '' }}">
+        <h2>{{ 'Editar línea pendiente' if edit_line else 'Nueva línea' }}</h2>
+        <div class="grid">
+          <label>Fecha *
+            <input type="date" name="fecha" required
+                   value="{{ edit_line.FechaRegistro|fecha_iso if edit_line }}">
+          </label>
+          <label>Hora inicio *
+            <input type="time" name="horaInicio" required
+                   value="{{ edit_line.HoraInicio|hora if edit_line }}">
+          </label>
+          <label>Hora fin *
+            <input type="time" name="horaFin" required
+                   value="{{ edit_line.HoraFin|hora if edit_line }}">
+          </label>
+          <label>Nº personas *
+            <input type="number" name="numPersonas" min="1" step="1" required
+                   value="{{ edit_line.NumPersonas if edit_line else 1 }}">
+          </label>
+          <label>Tipo de trabajo
+            <select name="tipoTrabajo">
+              <option value="">—</option>
+              {% for t in tipos %}
+              <option value="{{ t }}" {{ 'selected' if edit_line and edit_line.TipoTrabajo == t }}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Unidades producidas
+            <input type="number" name="unidades" min="0" step="0.01"
+                   placeholder="0"
+                   value="{{ edit_line.TotalUnidadesProducidas|num if edit_line }}">
+          </label>
+        </div>
+        <label class="full">Comentarios
+          <textarea name="comentarios" rows="2">{{ edit_line.Comentarios if edit_line and edit_line.Comentarios }}</textarea>
+        </label>
+        <div class="form-footer">
+          <span class="calc">Total: <strong id="calc-horas">0h 0min</strong></span>
+          <div class="actions">
+            {% if edit_line %}
+            <a class="btn btn-ghost" href="{{ url_for('main.index', op=selected_op) }}">Cancelar edición</a>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">
+              {{ 'Guardar cambios' if edit_line else 'Añadir línea' }}
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <h2>Histórico de la OP</h2>
+      {% include "_tabla_lineas.html" with context %}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

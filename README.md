@@ -1,0 +1,150 @@
+# Registro Horario de Producción (Cadena)
+
+Aplicación web interna para que las **responsables de cadena** registren líneas
+de horario/producción por Orden de Producción (OP), y las **responsables de
+planta** las validen en bloque. Reimplementación standalone (Python + Flask) del
+prototipo n8n, para alojarse en un servidor propio de JOMIPSA.
+
+Flujo de estados de una línea: `Pendiente` (editable/borrable) → `Confirmado`
+(inmutable, lista para el futuro envío a Business Central).
+
+Un resumen de la arquitectura y el alcance está en [`CLAUDE.md`](CLAUDE.md); la
+especificación funcional/técnica completa es el documento de traspaso original
+del prototipo n8n.
+
+---
+
+## Stack
+
+- **Backend / web**: Python 3 + Flask + plantillas Jinja2 (frontend vanilla, sin
+  frameworks JS).
+- **Base de datos**:
+  - `sqlite` — backend por defecto para desarrollo/pruebas. Sin dependencias
+    externas; arranca con datos de ejemplo.
+  - `mssql` — producción, Azure SQL vía `pyodbc`, usando las tablas y vistas que
+    ya existen (`gold.RegistroProduccion[_Temp]`, `gold.vw_PowerApp_*`).
+- **Autenticación**: usuarios locales con contraseñas hasheadas (PBKDF2-SHA256,
+  stdlib) y sesión firmada en cookie `HttpOnly` + `SameSite=Lax` + `Secure`.
+  Preparada para sustituirse por Entra ID / LDAP más adelante (ver *Autenticación*).
+
+## Estructura
+
+```
+main.py                    # entry point (dev server) + objeto WSGI `app`
+manage.py                  # CLI de administración (crear usuarios, hashear claves)
+config.py                  # configuración por variables de entorno
+requirements.txt           # Flask
+requirements-mssql.txt     # + pyodbc (solo producción)
+sql/schema.sql             # DDL de referencia (Azure SQL) + tabla gold.AppUsers
+app/
+  __init__.py              # create_app() + filtros Jinja
+  auth.py                  # hashing, sesión, login_required
+  constants.py             # opciones de tipo de trabajo + validación de negocio
+  routes.py                # endpoints (spec §3)
+  repository/
+    base.py                # interfaz abstracta
+    sqlite_repo.py         # backend de desarrollo/test
+    mssql_repo.py          # backend de producción (pyodbc, SQL exacto de la spec)
+  templates/  static/      # UI
+tests/                     # unittest (repositorio + rutas end-to-end)
+```
+
+## Puesta en marcha (desarrollo)
+
+```bash
+pip install -r requirements.txt
+python3 main.py
+# -> http://127.0.0.1:8000  (backend sqlite, datos de ejemplo)
+```
+
+Usuario inicial por defecto (cámbialo en cualquier entorno real):
+`User` / `Cambiar2025!!!`.
+
+### Ejecutar los tests
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+## Despliegue en producción (Azure SQL)
+
+1. Instala dependencias y el driver ODBC del sistema:
+   ```bash
+   pip install -r requirements-mssql.txt
+   # + "ODBC Driver 18 for SQL Server" (msodbcsql18) a nivel de SO
+   ```
+2. Crea la tabla de usuarios (las demás ya existen en producción):
+   ```sql
+   -- ejecuta la sección "APP USERS" de sql/schema.sql
+   ```
+3. Configura las variables de entorno (ver abajo), en especial
+   `RHP_SECRET_KEY`, `RHP_DB_BACKEND=mssql` y `RHP_MSSQL_CONNECTION_STRING`.
+4. Crea el primer usuario real:
+   ```bash
+   python3 manage.py create-user --username jefa.planta --role planta --name "..."
+   ```
+5. Sirve la app WSGI (`main:app`) detrás de un servidor de producción, p. ej.:
+   ```bash
+   waitress-serve --listen=0.0.0.0:8000 main:app
+   ```
+   (o `uvicorn`/`gunicorn` vía puente WSGI, o tras IIS con un conector WSGI).
+   Termina siempre TLS delante (IIS / reverse proxy) para que `Secure` cookies
+   tengan sentido.
+
+## Variables de entorno
+
+| Variable | Por defecto | Descripción |
+|---|---|---|
+| `RHP_SECRET_KEY` | *(inseguro)* | Clave para firmar la cookie de sesión. **Obligatoria en producción.** |
+| `RHP_DB_BACKEND` | `sqlite` | `sqlite` o `mssql`. |
+| `RHP_SQLITE_PATH` | `instance/rhp_dev.sqlite3` | Ruta del fichero SQLite (dev). |
+| `RHP_SQLITE_SEED` | `true` | Sembrar OPs y usuario de ejemplo en SQLite. |
+| `RHP_MSSQL_CONNECTION_STRING` | — | Cadena de conexión pyodbc (producción). |
+| `RHP_SESSION_COOKIE_SECURE` | `true` | Poner `false` solo para pruebas por HTTP. |
+| `RHP_SESSION_LIFETIME_SECONDS` | `28800` | Duración de la sesión (8 h). |
+| `RHP_DEFAULT_ADMIN_USER` / `_PASSWORD` / `_ROLE` | `User` / `Cambiar2025!!!` / `planta` | Usuario semilla si la tabla de usuarios está vacía. |
+| `RHP_HOST` / `RHP_PORT` / `RHP_DEBUG` | `127.0.0.1` / `8000` / `off` | Servidor de desarrollo. |
+
+Ejemplo de `RHP_MSSQL_CONNECTION_STRING`:
+```
+Driver={ODBC Driver 18 for SQL Server};Server=tcp:sqlserver-jomipsapde-prod-westeu-001.database.windows.net,1433;Database=sqldb-jomipsapde-prod-westeu-001;UID=<usuario>;PWD=<clave>;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;
+```
+
+## Reglas de negocio implementadas (spec §4)
+
+- **Unidades opcional** → se guarda `0` si se deja vacío (la columna no admite NULL).
+- **Fecha por línea** obligatoria; el formulario la precarga con la fecha **local
+  del navegador** (no la del servidor).
+- **Tipo de trabajo**: lista cerrada (`005 Preparación`, `010 Fabricación/Comida`,
+  `006 Reproceso`) + vacío. Los valores legacy (`Etiquetado`/`Reproceso`) no se
+  ofrecen en altas nuevas.
+- **Totales** de horas y unidades al pie de cada tabla.
+- **Snapshot de la OP** al crear cada línea (ItemNo, descripción, almacén, ruta,
+  centro de máquina, cantidad planificada) para no perder datos si la OP se cierra
+  en BC antes de validar (spec §6).
+- **Buscador principal** solo lista OPs abiertas (`Status = 3`); la pantalla de
+  *líneas pendientes* muestra también OPs ya cerradas con pendientes sin validar.
+- **Editar/Borrar por línea** viven solo en *líneas pendientes*.
+- **Validar** es **por OP completa, irreversible**, en una transacción de dos
+  pasos (copiar con guarda anti-duplicados → borrar de la temporal), con
+  confirmación explícita en la UI.
+- **Trazabilidad**: `CreatedBy`/`ModifiedBy` guardan el usuario autenticado real
+  (el prototipo escribía siempre `'n8n'`).
+
+## Autenticación — nota de evolución
+
+Esta versión implementa la *alternativa mínima* de la spec §5 (usuarios locales
+con hash + sesión de servidor). Para pasar a **Entra ID / LDAP** (recomendado, ya
+que la empresa usa M365):
+
+- Sustituir `authenticate()` en `app/auth.py` por el flujo OIDC (`msal`/`Authlib`).
+- `current_user()`, `login_required` y `CreatedBy/ModifiedBy` no cambian.
+- `gold.AppUsers` puede eliminarse o quedar como fallback.
+
+## Business Central — fuera de alcance en esta versión
+
+La escritura hacia BC (`MNOutputJournalLine`) **no está implementada**: en la spec
+§7 solo se ha verificado *lectura* (GET), nunca escritura, ni el `Journal_Batch_Name`
+ni el `Order_Line_No` están resueltos. La vista `gold.vw_BC_DiarioSalida` ya deja
+los datos preparados para esa integración futura; ver las preguntas abiertas en
+`CLAUDE.md` §7 y §10 antes de abordarla.

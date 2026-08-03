@@ -1,0 +1,7 @@
+# Extra dependency needed only in production (RHP_DB_BACKEND=mssql).
+#
+# pyodbc also requires the OS-level "ODBC Driver 18 for SQL Server" (or 17).
+# On Windows Server install the msodbcsql18 MSI; on Debian/Ubuntu install the
+# msodbcsql18 apt package from the Microsoft repository.
+-r requirements.txt
+pyodbc>=5.0

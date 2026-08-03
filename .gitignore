@@ -1,1 +1,11 @@
 .mcp.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local dev database (SQLite backend)
+instance/
+*.sqlite3

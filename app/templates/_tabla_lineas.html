@@ -1,0 +1,43 @@
+{# History table for one OP (spec §3.1). Read-only: per-line edit/delete live
+   only on the "líneas pendientes" screen. #}
+<div class="table-wrap">
+  <table class="lineas">
+    <thead>
+      <tr>
+        <th>Estado</th><th>Fecha</th><th>Inicio</th><th>Fin</th>
+        <th class="num">Horas</th><th class="num">Personas</th>
+        <th class="num">Unidades</th><th>Tipo</th><th>Comentarios</th>
+        <th class="num">Uds/h·pers</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in history %}
+      <tr class="estado-{{ l.Estado|lower }}">
+        <td><span class="badge badge-{{ l.Estado|lower }}">{{ l.Estado }}</span></td>
+        <td>{{ l.FechaRegistro|fecha }}</td>
+        <td>{{ l.HoraInicio|hora }}</td>
+        <td>{{ l.HoraFin|hora }}</td>
+        <td class="num">{{ l.TotalHoras|num }} <span class="muted">({{ l.TotalHoras|horas_humano }})</span></td>
+        <td class="num">{{ l.NumPersonas }}</td>
+        <td class="num">{{ l.TotalUnidadesProducidas|num }}</td>
+        <td>{{ l.TipoTrabajo or '—' }}</td>
+        <td>{{ l.Comentarios or '' }}</td>
+        <td class="num">{{ l.UnidadesPorHoraPersona|num if l.UnidadesPorHoraPersona is not none else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" class="muted">Sin líneas registradas todavía.</td></tr>
+      {% endfor %}
+    </tbody>
+    {% if history %}
+    <tfoot>
+      <tr class="totales">
+        <td colspan="4">TOTALES</td>
+        <td class="num">{{ totales.horas|num }}</td>
+        <td></td>
+        <td class="num">{{ totales.unidades|num }}</td>
+        <td colspan="3"></td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>

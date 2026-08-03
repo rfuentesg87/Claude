@@ -1,0 +1,4 @@
+# Registro Horario de Producción — runtime dependencies
+#
+# Web layer (always required)
+Flask>=3.0,<4.0

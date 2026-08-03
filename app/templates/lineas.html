@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Líneas pendientes · Registro Horario{% endblock %}
+{% block content %}
+<div class="pending-page">
+  <h1>Líneas pendientes de validar</h1>
+  <p class="muted">Incluye OPs ya cerradas en BC que aún tienen líneas sin validar.</p>
+
+  {% if not grupos %}
+    <div class="empty"><p>No hay líneas pendientes registradas.</p></div>
+  {% else %}
+    {% for g in grupos %}
+    <article class="op-card" data-op="{{ g.op }}">
+      <header class="op-card-head">
+        <div>
+          <h2>OP {{ g.op }}</h2>
+          <p class="muted">{{ g.item_description or 'Sin descripción' }}
+             · {{ g.lineas|length }} línea{{ 's' if g.lineas|length != 1 }}</p>
+        </div>
+        <button type="button" class="btn btn-success btn-validar"
+                data-op="{{ g.op }}" data-count="{{ g.lineas|length }}">
+          VALIDAR TODAS LAS LÍNEAS
+        </button>
+      </header>
+
+      <div class="table-wrap">
+        <table class="lineas">
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Inicio</th><th>Fin</th>
+              <th class="num">Horas</th><th class="num">Personas</th>
+              <th class="num">Unidades</th><th>Tipo</th><th>Comentarios</th>
+              <th class="acciones">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in g.lineas %}
+            <tr>
+              <td>{{ l.FechaRegistro|fecha }}</td>
+              <td>{{ l.HoraInicio|hora }}</td>
+              <td>{{ l.HoraFin|hora }}</td>
+              <td class="num">{{ l.TotalHoras|num }} <span class="muted">({{ l.TotalHoras|horas_humano }})</span></td>
+              <td class="num">{{ l.NumPersonas }}</td>
+              <td class="num">{{ l.TotalUnidadesProducidas|num }}</td>
+              <td>{{ l.TipoTrabajo or '—' }}</td>
+              <td>{{ l.Comentarios or '' }}</td>
+              <td class="acciones">
+                <a class="btn btn-small"
+                   href="{{ url_for('main.index', op=g.op, edit=l.RegistroProduccionTempId) }}">Editar</a>
+                <button type="button" class="btn btn-small btn-danger btn-borrar"
+                        data-id="{{ l.RegistroProduccionTempId }}">Borrar</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="totales">
+              <td colspan="3">TOTALES</td>
+              <td class="num">{{ g.total_horas|num }}</td>
+              <td></td>
+              <td class="num">{{ g.total_unidades|num }}</td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </article>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

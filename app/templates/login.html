@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Acceso · Registro Horario{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <form class="login-card" method="post" action="{{ url_for('main.login') }}">
+    <h1>Registro Horario de Producción</h1>
+    <p class="muted">Acceso para responsables de cadena y de planta.</p>
+    {% if error %}<div class="error-box">{{ error }}</div>{% endif %}
+    <label>Usuario
+      <input type="text" name="username" autocomplete="username" required autofocus>
+    </label>
+    <label>Contraseña
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button type="submit" class="btn btn-primary">Entrar</button>
+  </form>
+</div>
+{% endblock %}
