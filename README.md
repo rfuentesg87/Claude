@@ -66,18 +66,64 @@ Usuario inicial por defecto (cámbialo en cualquier entorno real):
 python3 -m unittest discover -s tests -v
 ```
 
-## Despliegue en producción (Azure SQL)
+## Despliegue en el servidor (recomendado)
 
-1. Instala dependencias y el driver ODBC del sistema:
-   ```bash
-   pip install -r requirements-mssql.txt
-   # + "ODBC Driver 18 for SQL Server" (msodbcsql18) a nivel de SO
-   ```
-2. Crea la tabla de usuarios (las demás ya existen en producción):
+Esto **es una aplicación web**: se instala una sola vez en un servidor y las
+usuarias entran con el navegador. No hay que instalar nada en sus equipos ni
+distribuir ejecutables.
+
+En el servidor, con **PowerShell como administrador**, desde la carpeta del
+repositorio:
+
+```powershell
+git clone https://github.com/rfuentesg87/Claude.git C:\RegistroHorario
+cd C:\RegistroHorario
+git checkout claude/registro-horario-produccion-ij9qp2
+
+.\deploy\install-server.ps1            # o -Port 8080
+```
+
+El script hace todo lo mecánico: entorno virtual de Python aislado, dependencias
+(incluido `pyodbc`), `registro-horario.env` con una `RHP_SECRET_KEY` aleatoria,
+arranque automático al encender el servidor (con reintentos si se cae), regla de
+firewall, y arranca la aplicación. Requisito previo: **Python 3.9+** y el
+**ODBC Driver 18 for SQL Server** instalados en la máquina (el script avisa si
+faltan).
+
+Después queda solo configurar la base de datos (pasos de la sección siguiente) y:
+
+```powershell
+notepad C:\RegistroHorario\registro-horario.env      # pon la cadena de conexión
+.\.venv\Scripts\python.exe manage.py check-db        # verifica la conexión
+Restart-ScheduledTask -TaskName RegistroHorario
+.\.venv\Scripts\python.exe manage.py create-user --username nombre.apellido --role cadena
+```
+
+Las usuarias acceden a `http://<nombre-del-servidor>:8000/`.
+
+Gestión del servicio: `Start-ScheduledTask` / `Stop-ScheduledTask` /
+`Get-ScheduledTask -TaskName RegistroHorario`.
+Para actualizar: `git pull` y `Restart-ScheduledTask -TaskName RegistroHorario`.
+
+> **TLS**: si se publica más allá de la red interna, pon IIS o un reverse proxy
+> delante terminando HTTPS, y entonces `RHP_SESSION_COOKIE_SECURE=true`.
+
+### Alternativa manual
+
+Si se prefiere sin script, la app es un WSGI estándar (`main:app`):
+
+```bash
+pip install -r requirements-mssql.txt
+waitress-serve --listen=0.0.0.0:8000 main:app
+```
+
+## Configuración de la base de datos (Azure SQL)
+
+1. Crea la tabla de usuarios (las demás ya existen en producción):
    ```sql
    -- ejecuta la sección "APP USERS" de sql/schema.sql
    ```
-3. Crea el usuario de base de datos de la aplicación, con mínimo privilegio:
+2. Crea el usuario de base de datos de la aplicación, con mínimo privilegio:
    ```sql
    -- ejecuta sql/create_app_user.sql  (requiere un login administrador;
    -- desde el "Query editor" del portal de Azure o SSMS)
@@ -85,21 +131,14 @@ python3 -m unittest discover -s tests -v
    Concede solo lo que la app usa. En particular **no** da `UPDATE`/`DELETE`
    sobre `gold.RegistroProduccion`, de modo que la inmutabilidad de las líneas
    validadas la garantiza la propia base de datos.
-4. Permite la IP del servidor de la app en el firewall de Azure SQL
+3. Permite la IP del servidor de la app en el firewall de Azure SQL
    (*SQL server → Networking → Firewall rules*).
-5. Configura las variables de entorno (ver abajo), en especial
-   `RHP_SECRET_KEY`, `RHP_DB_BACKEND=mssql` y `RHP_MSSQL_CONNECTION_STRING`.
-6. Crea el primer usuario real:
+4. Pon `RHP_DB_BACKEND=mssql` y `RHP_MSSQL_CONNECTION_STRING` en
+   `registro-horario.env` (o como variables de entorno).
+5. Crea el primer usuario real:
    ```bash
    python3 manage.py create-user --username jefa.planta --role planta --name "..."
    ```
-7. Sirve la app WSGI (`main:app`) detrás de un servidor de producción, p. ej.:
-   ```bash
-   waitress-serve --listen=0.0.0.0:8000 main:app
-   ```
-   (o `uvicorn`/`gunicorn` vía puente WSGI, o tras IIS con un conector WSGI).
-   Termina siempre TLS delante (IIS / reverse proxy) para que `Secure` cookies
-   tengan sentido.
 
 ## Escritura en el data warehouse (Azure SQL)
 
@@ -135,7 +174,12 @@ python3 manage.py test-write --op PO-XXXXX --user tu.usuario
 python3 manage.py test-write --keep     # deja la línea para verla en la UI
 ```
 
-## Ejecutable e instalador para Windows
+## Ejecutable para Windows (opcional — solo para demos)
+
+> **No es la vía de despliegue.** Para el uso real, usa el despliegue en
+> servidor de más arriba: una instalación, credenciales en un único sitio, y las
+> usuarias solo necesitan un navegador. El `.exe` existe únicamente para poder
+> **enseñar la aplicación en un portátil sin instalar Python ni base de datos**.
 
 No hace falta instalar Python en la máquina destino: hay un `.exe` autocontenido
 y un instalador.
@@ -164,6 +208,15 @@ RegistroHorario.exe --demo
 ```
 Arranca con SQLite y datos de ejemplo, abre el navegador solo y **no se conecta
 a Azure SQL**. Ideal para que las responsables prueben el flujo.
+
+Al no estar firmado digitalmente, Windows mostrará *"Windows protegió su PC"*
+(SmartScreen): pulsa **Más información → Ejecutar de todas formas**, o antes de
+ejecutarlo, clic derecho → *Propiedades* → marca **Desbloquear**. Es otro motivo
+para desplegar en el servidor: por navegador no aparece ningún aviso.
+
+Un doble clic sin argumentos y sin `registro-horario.env` entra también en modo
+demostración (y lo indica en la consola), guardando su base de datos en
+`datos\` junto al ejecutable.
 
 ### Instalación en el servidor
 

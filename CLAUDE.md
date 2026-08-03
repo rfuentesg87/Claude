@@ -46,7 +46,11 @@ python3 manage.py test-write                 # write test (inserts + deletes)
 - `app/templates/`, `app/static/` — UI. `sql/schema.sql` — reference DDL.
 - `launcher.py` — entry point of the packaged Windows build; serves via waitress,
   reads `registro-horario.env`, supports `--demo` (SQLite + sample data).
-- `packaging/` — PyInstaller spec, Inno Setup script, config template.
+- `deploy/install-server.ps1` — the recommended deployment: venv + deps + boot
+  task + firewall on a Windows server. Users reach it by browser; nothing is
+  installed on their machines.
+- `packaging/` — PyInstaller spec, Inno Setup script, config template. The .exe
+  is a demo convenience only, NOT the deployment path.
   `.github/workflows/build-windows.yml` builds both on a Windows runner
   (PyInstaller cannot cross-compile, so never try to build the .exe on Linux).
 
