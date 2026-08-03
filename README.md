@@ -77,13 +77,23 @@ python3 -m unittest discover -s tests -v
    ```sql
    -- ejecuta la sección "APP USERS" de sql/schema.sql
    ```
-3. Configura las variables de entorno (ver abajo), en especial
+3. Crea el usuario de base de datos de la aplicación, con mínimo privilegio:
+   ```sql
+   -- ejecuta sql/create_app_user.sql  (requiere un login administrador;
+   -- desde el "Query editor" del portal de Azure o SSMS)
+   ```
+   Concede solo lo que la app usa. En particular **no** da `UPDATE`/`DELETE`
+   sobre `gold.RegistroProduccion`, de modo que la inmutabilidad de las líneas
+   validadas la garantiza la propia base de datos.
+4. Permite la IP del servidor de la app en el firewall de Azure SQL
+   (*SQL server → Networking → Firewall rules*).
+5. Configura las variables de entorno (ver abajo), en especial
    `RHP_SECRET_KEY`, `RHP_DB_BACKEND=mssql` y `RHP_MSSQL_CONNECTION_STRING`.
-4. Crea el primer usuario real:
+6. Crea el primer usuario real:
    ```bash
    python3 manage.py create-user --username jefa.planta --role planta --name "..."
    ```
-5. Sirve la app WSGI (`main:app`) detrás de un servidor de producción, p. ej.:
+7. Sirve la app WSGI (`main:app`) detrás de un servidor de producción, p. ej.:
    ```bash
    waitress-serve --listen=0.0.0.0:8000 main:app
    ```
