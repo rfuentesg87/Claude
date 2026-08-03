@@ -91,6 +91,40 @@ python3 -m unittest discover -s tests -v
    Termina siempre TLS delante (IIS / reverse proxy) para que `Secure` cookies
    tengan sentido.
 
+## Escritura en el data warehouse (Azure SQL)
+
+La aplicación **escribe directamente en el data warehouse**; es su función
+principal. Con `RHP_DB_BACKEND=mssql` todas las operaciones van contra el
+esquema `gold`, con SQL parametrizado:
+
+| Acción en la app | Escritura en el warehouse |
+|---|---|
+| Alta de línea | `INSERT` en `gold.RegistroProduccion_Temp` (+ snapshot de la OP) |
+| Editar línea pendiente | `UPDATE` en `gold.RegistroProduccion_Temp` |
+| Borrar línea pendiente | `DELETE` en `gold.RegistroProduccion_Temp` |
+| **Validar OP (bloque)** | `INSERT` en `gold.RegistroProduccion` + `DELETE` de la Temp, en **una transacción** |
+
+Los datos **definitivos** quedan en `gold.RegistroProduccion`. La automatización
+posterior hacia Business Central solo tiene que **leer** de ahí — la vista
+`gold.vw_BC_DiarioSalida` ya expone las líneas confirmadas con el `OperationNo`
+extraído y los campos resueltos por `COALESCE` (snapshot ↔ OP abierta), así que
+sirve como origen directo sin tocar esta aplicación.
+
+### Verificar la conexión y la escritura
+
+Dos comandos para comprobar el warehouse real antes de dar acceso a las usuarias:
+
+```bash
+# 1) Solo lectura: conectividad + que existan las vistas/tablas. No escribe nada.
+python3 manage.py check-db
+
+# 2) Escritura de extremo a extremo: inserta una línea de prueba, la lee de
+#    vuelta (comprobando el snapshot de la OP) y la BORRA automáticamente.
+#    Nunca toca gold.RegistroProduccion (no valida nada).
+python3 manage.py test-write --op PO-XXXXX --user tu.usuario
+python3 manage.py test-write --keep     # deja la línea para verla en la UI
+```
+
 ## Variables de entorno
 
 | Variable | Por defecto | Descripción |

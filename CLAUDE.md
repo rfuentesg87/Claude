@@ -31,6 +31,8 @@ python3 main.py                              # dev server, sqlite backend
 
 python3 -m unittest discover -s tests -v     # tests
 python3 manage.py create-user --username x --role cadena   # admin CLI
+python3 manage.py check-db                   # read-only warehouse check
+python3 manage.py test-write                 # write test (inserts + deletes)
 ```
 
 ## Architecture
@@ -45,9 +47,12 @@ python3 manage.py create-user --username x --role cadena   # admin CLI
 
 ## Scope note
 
-Business Central *write* integration (spec §7) is intentionally **not**
-implemented — only reads were ever verified against BC. Do not add it without
-resolving the open questions in the handoff spec (§7, §10).
+The app's job is to **write to the Azure SQL data warehouse** (`gold` schema);
+validated lines land in `gold.RegistroProduccion`. Feeding Business Central is a
+separate, later automation that **reads** from there (`gold.vw_BC_DiarioSalida`
+is already shaped for it) — so BC integration is deliberately **not** part of
+this app. Do not add BC writes here without resolving the open questions in the
+handoff spec (§7, §10); only reads were ever verified against BC.
 
 ## Development Branch
 
