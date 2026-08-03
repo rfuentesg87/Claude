@@ -9,3 +9,10 @@ venv/
 # Local dev database (SQLite backend)
 instance/
 *.sqlite3
+
+# Packaging output (PyInstaller / Inno Setup) and runtime data folder
+build/
+dist/
+datos/
+# Real configuration must never be committed (contains DB credentials).
+registro-horario.env

@@ -44,6 +44,11 @@ python3 manage.py test-write                 # write test (inserts + deletes)
   (production SQL is the exact SQL from the spec, always parameterized).
 - `app/auth.py` — hashing/session; designed to be swapped for Entra ID/LDAP later.
 - `app/templates/`, `app/static/` — UI. `sql/schema.sql` — reference DDL.
+- `launcher.py` — entry point of the packaged Windows build; serves via waitress,
+  reads `registro-horario.env`, supports `--demo` (SQLite + sample data).
+- `packaging/` — PyInstaller spec, Inno Setup script, config template.
+  `.github/workflows/build-windows.yml` builds both on a Windows runner
+  (PyInstaller cannot cross-compile, so never try to build the .exe on Linux).
 
 ## Scope note
 

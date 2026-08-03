@@ -135,6 +135,58 @@ python3 manage.py test-write --op PO-XXXXX --user tu.usuario
 python3 manage.py test-write --keep     # deja la línea para verla en la UI
 ```
 
+## Ejecutable e instalador para Windows
+
+No hace falta instalar Python en la máquina destino: hay un `.exe` autocontenido
+y un instalador.
+
+**Descargarlos ya compilados**: cada push a la rama lanza el workflow
+*Build Windows executable and installer* (GitHub → pestaña **Actions** → última
+ejecución → sección **Artifacts**):
+
+| Artefacto | Qué es |
+|---|---|
+| `RegistroHorario-exe` | `RegistroHorario.exe` suelto (portable). |
+| `RegistroHorario-installer` | `RegistroHorarioSetup-1.0.0.exe` para el servidor. |
+
+**Compilarlos a mano** (en Windows, porque PyInstaller no compila cruzado):
+
+```bat
+pip install -r requirements-packaging.txt
+pyinstaller --clean --noconfirm packaging\registro-horario.spec
+iscc packaging\installer.iss
+```
+
+### Modo demostración (portable)
+
+```bat
+RegistroHorario.exe --demo
+```
+Arranca con SQLite y datos de ejemplo, abre el navegador solo y **no se conecta
+a Azure SQL**. Ideal para que las responsables prueben el flujo.
+
+### Instalación en el servidor
+
+El instalador copia la aplicación, crea los accesos del menú Inicio, y
+opcionalmente registra el **arranque automático al encender** y abre el puerto
+8000 en el Firewall de Windows. Después hay que editar
+`registro-horario.env` (lo abre al terminar) con la cadena de conexión.
+
+Los usuarios acceden por `http://<nombre-del-servidor>:8000/`.
+
+> **Por qué en un servidor y no en cada PC:** instalado una sola vez, las
+> credenciales de la BBDD viven en un único sitio, solo hay que abrir una IP en
+> el firewall de Azure SQL, y las actualizaciones se hacen una vez. Si se
+> instalara en cada equipo habría que repartir las credenciales y mantener N
+> instalaciones.
+
+Nota sobre el arranque automático: se registra como **tarea programada al inicio
+del sistema** (ejecutando como `SYSTEM`), no como servicio de Windows nativo, ya
+que un ejecutable de consola no implementa el protocolo de control de servicios
+y Windows lo mataría por no responder. Si se quiere un servicio real con
+acciones de recuperación, envuelve el `.exe` con [NSSM](https://nssm.cc/) o
+[WinSW](https://github.com/winsw/winsw).
+
 ## Variables de entorno
 
 | Variable | Por defecto | Descripción |

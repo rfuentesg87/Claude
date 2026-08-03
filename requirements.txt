@@ -2,3 +2,8 @@
 #
 # Web layer (always required)
 Flask>=3.0,<4.0
+
+# Production WSGI server. Used by launcher.py / the packaged executable, and the
+# recommended way to serve the app on Windows. `python3 main.py` (the dev server)
+# does not need it.
+waitress>=3.0

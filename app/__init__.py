@@ -1,6 +1,8 @@
 """Application factory for Registro Horario de Producción."""
 from __future__ import annotations
 
+import os
+import sys
 from datetime import date, datetime, time
 
 from flask import Flask
@@ -8,6 +10,19 @@ from flask import Flask
 from config import Config
 from .auth import ensure_seed_user
 from .repository import build_repository
+
+
+def _package_root() -> str:
+    """Directory holding templates/ and static/.
+
+    When frozen by PyInstaller the sources live in a temporary extraction dir
+    (``sys._MEIPASS``) instead of next to this file, so Flask must be given
+    explicit folders or it would look inside the executable and find nothing.
+    """
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        return os.path.join(meipass, "app")
+    return os.path.dirname(os.path.abspath(__file__))
 
 
 def _fmt_hora(value) -> str:
@@ -54,7 +69,12 @@ def _fmt_num(value) -> str:
 
 def create_app(config: type[Config] | None = None) -> Flask:
     config = config or Config
-    app = Flask(__name__)
+    root = _package_root()
+    app = Flask(
+        __name__,
+        template_folder=os.path.join(root, "templates"),
+        static_folder=os.path.join(root, "static"),
+    )
     app.config.from_object(config)
 
     # Shared repository instance for the app.

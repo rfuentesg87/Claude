@@ -1,0 +1,5 @@
+# Build-time dependencies for producing the Windows executable + installer.
+# Only needed on the machine that builds the package (or in CI), never at runtime.
+-r requirements.txt
+-r requirements-mssql.txt
+pyinstaller>=6.0

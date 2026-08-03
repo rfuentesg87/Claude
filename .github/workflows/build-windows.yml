@@ -1,0 +1,108 @@
+name: Build Windows executable and installer
+
+# PyInstaller cannot cross-compile, so the Windows artefacts are built on a
+# Windows runner. Download them from the "Artifacts" section of the run.
+on:
+  push:
+    branches:
+      - "claude/registro-horario-produccion-**"
+    paths:
+      - "app/**"
+      - "packaging/**"
+      - "launcher.py"
+      - "config.py"
+      - "requirements*.txt"
+      - ".github/workflows/build-windows.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-packaging.txt
+
+      - name: Run tests
+        env:
+          RHP_SESSION_COOKIE_SECURE: "false"
+        run: python -m unittest discover -s tests -v
+
+      - name: Build executable
+        run: pyinstaller --clean --noconfirm packaging/registro-horario.spec
+
+      - name: Smoke-test the executable
+        shell: pwsh
+        env:
+          RHP_SESSION_COOKIE_SECURE: "false"
+        run: |
+          # Start the demo server, then check it actually serves the login page
+          # and that the bundled templates/static files resolve inside the exe.
+          $proc = Start-Process -FilePath "dist\RegistroHorario.exe" `
+                    -ArgumentList "--demo","--no-browser","--port","8123" `
+                    -PassThru -RedirectStandardOutput exe-out.log -RedirectStandardError exe-err.log
+          try {
+            $ok = $false
+            foreach ($i in 1..30) {
+              Start-Sleep -Seconds 2
+              try {
+                $login = Invoke-WebRequest "http://127.0.0.1:8123/login" -UseBasicParsing -TimeoutSec 5
+                $css   = Invoke-WebRequest "http://127.0.0.1:8123/static/style.css" -UseBasicParsing -TimeoutSec 5
+                if ($login.StatusCode -eq 200 -and $css.StatusCode -eq 200) { $ok = $true; break }
+              } catch { }
+            }
+            if (-not $ok) {
+              Write-Host "--- stdout ---"; Get-Content exe-out.log -ErrorAction SilentlyContinue
+              Write-Host "--- stderr ---"; Get-Content exe-err.log -ErrorAction SilentlyContinue
+              throw "El ejecutable no respondio correctamente en el puerto 8123"
+            }
+            Write-Host "OK: el ejecutable sirve /login y /static/style.css"
+          } finally {
+            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+          }
+
+      - name: Build installer (Inno Setup)
+        shell: pwsh
+        run: |
+          # ISCC.exe is not necessarily on PATH (and not on every runner image),
+          # so locate it and fall back to installing Inno Setup via Chocolatey.
+          $iscc = Get-Command iscc -ErrorAction SilentlyContinue
+          if ($iscc) { $exe = $iscc.Source } else {
+            $candidates = @(
+              "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+              "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+            )
+            $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+            if (-not $exe) {
+              Write-Host "Inno Setup no encontrado; instalando via Chocolatey..."
+              choco install innosetup --no-progress -y
+              $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+            }
+          }
+          if (-not $exe) { throw "No se pudo localizar ISCC.exe (Inno Setup)" }
+          Write-Host "Usando: $exe"
+          & $exe "packaging\installer.iss"
+          if ($LASTEXITCODE -ne 0) { throw "La compilacion del instalador fallo ($LASTEXITCODE)" }
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: RegistroHorario-exe
+          path: dist/RegistroHorario.exe
+          if-no-files-found: error
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: RegistroHorario-installer
+          path: dist/installer/*.exe
+          if-no-files-found: error
