@@ -7,12 +7,26 @@ edits. See README.md for the full list.
 from __future__ import annotations
 
 import os
+import sys
 
 
 def _as_bool(value: str | None, default: bool) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _writable_base_dir() -> str:
+    """Directory to store writable data (e.g. the SQLite database).
+
+    When frozen by PyInstaller, ``__file__`` points inside the temporary
+    extraction directory, which is DELETED when the process exits — a database
+    written there would silently vanish on every restart. Use the folder holding
+    the executable instead.
+    """
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
 
 
 class Config:
@@ -35,7 +49,11 @@ class Config:
     # SQLite dev backend
     SQLITE_PATH = os.environ.get(
         "RHP_SQLITE_PATH",
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "instance", "rhp_dev.sqlite3"),
+        os.path.join(
+            _writable_base_dir(),
+            "datos" if getattr(sys, "frozen", False) else "instance",
+            "rhp_dev.sqlite3",
+        ),
     )
     # Seed the SQLite dev DB with sample OPs + a default user on first run.
     SQLITE_SEED = _as_bool(os.environ.get("RHP_SQLITE_SEED"), True)

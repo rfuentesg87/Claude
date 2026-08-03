@@ -42,13 +42,15 @@ jobs:
 
       - name: Smoke-test the executable
         shell: pwsh
-        env:
-          RHP_SESSION_COOKIE_SECURE: "false"
         run: |
-          # Start the demo server, then check it actually serves the login page
-          # and that the bundled templates/static files resolve inside the exe.
-          $proc = Start-Process -FilePath "dist\RegistroHorario.exe" `
-                    -ArgumentList "--demo","--no-browser","--port","8123" `
+          # Exercised WITHOUT --demo and with no registro-horario.env, i.e. exactly
+          # what happens when a user double-clicks the exe. This must fall back to
+          # demo mode, keep its database next to the executable (not in the
+          # deleted temp dir) and complete a real login round-trip — the session
+          # cookie has to come back over plain HTTP.
+          Copy-Item dist\RegistroHorario.exe "$env:TEMP\dobleclic.exe"
+          $proc = Start-Process -FilePath "$env:TEMP\dobleclic.exe" `
+                    -ArgumentList "--no-browser","--port","8123" `
                     -PassThru -RedirectStandardOutput exe-out.log -RedirectStandardError exe-err.log
           try {
             $ok = $false
@@ -63,9 +65,29 @@ jobs:
             if (-not $ok) {
               Write-Host "--- stdout ---"; Get-Content exe-out.log -ErrorAction SilentlyContinue
               Write-Host "--- stderr ---"; Get-Content exe-err.log -ErrorAction SilentlyContinue
-              throw "El ejecutable no respondio correctamente en el puerto 8123"
+              throw "El ejecutable no respondio en el puerto 8123"
             }
-            Write-Host "OK: el ejecutable sirve /login y /static/style.css"
+            Write-Host "OK: sirve /login y /static/style.css"
+
+            # Real login: POST the seeded credentials, keep the cookie jar, then
+            # request a protected page. A Secure-only cookie over HTTP would send
+            # us back to /login and this check would fail.
+            Invoke-WebRequest "http://127.0.0.1:8123/login" -UseBasicParsing `
+              -Method POST -Body @{username="User"; password="Cambiar2025!!!"} `
+              -SessionVariable sess -MaximumRedirection 0 -SkipHttpErrorCheck | Out-Null
+            $home = Invoke-WebRequest "http://127.0.0.1:8123/" -UseBasicParsing -WebSession $sess -TimeoutSec 10
+            if ($home.Content -notmatch "Ordenes de Produccion|rdenes de Produ") {
+              Write-Host "--- stdout ---"; Get-Content exe-out.log -ErrorAction SilentlyContinue
+              throw "El login no mantuvo la sesion (la pagina principal no se sirvio)"
+            }
+            Write-Host "OK: login completo y sesion mantenida"
+
+            # The database must live beside the executable, not in the PyInstaller
+            # temp folder that gets wiped on exit.
+            if (-not (Test-Path "$env:TEMP\datos\demo.sqlite3")) {
+              throw "La base de datos no se creo junto al ejecutable"
+            }
+            Write-Host "OK: base de datos creada junto al ejecutable"
           } finally {
             if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
           }

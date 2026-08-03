@@ -92,8 +92,20 @@ def main(argv: list[str] | None = None) -> int:
     env_path = os.path.join(base, ENV_FILENAME)
     applied = load_env_file(env_path)
 
-    # 2. Demo mode overrides: self-contained, zero configuration.
-    if args.demo:
+    # 2. Double-clicking the packaged exe passes no arguments. With no .env file
+    #    and no backend configured there is nothing to connect to, so fall back
+    #    to the demo instead of starting a broken server (the old behaviour put
+    #    the SQLite file in a temp dir and refused logins over plain HTTP).
+    auto_demo = (
+        not args.demo
+        and getattr(sys, "frozen", False)
+        and not applied
+        and not os.environ.get("RHP_DB_BACKEND")
+    )
+    demo = args.demo or auto_demo
+
+    # 3. Demo mode overrides: self-contained, zero configuration.
+    if demo:
         os.environ["RHP_DB_BACKEND"] = "sqlite"
         os.environ["RHP_SQLITE_SEED"] = "true"
         os.environ["RHP_SQLITE_PATH"] = os.path.join(base, "datos", "demo.sqlite3")
@@ -102,10 +114,10 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["RHP_SESSION_COOKIE_SECURE"] = "false"
         os.environ.setdefault("RHP_SECRET_KEY", "demo-solo-para-pruebas-no-usar-en-produccion")
 
-    host = args.host or os.environ.get("RHP_HOST") or ("127.0.0.1" if args.demo else "0.0.0.0")
+    host = args.host or os.environ.get("RHP_HOST") or ("127.0.0.1" if demo else "0.0.0.0")
     port = args.port or int(os.environ.get("RHP_PORT", "8000"))
 
-    # 3. Import AFTER the environment is set — config.py reads os.environ at
+    # 4. Import AFTER the environment is set — config.py reads os.environ at
     #    import time, so importing earlier would freeze the wrong settings.
     try:
         from app import create_app
@@ -118,9 +130,15 @@ def main(argv: list[str] | None = None) -> int:
     print("=" * 68)
     print(" Registro Horario de Producción (Cadena)")
     print("=" * 68)
-    if args.demo:
-        print(" MODO DEMOSTRACIÓN — datos de ejemplo, no se conecta a Azure SQL.")
-        print(" Usuario: User      Contraseña: Cambiar2025!!!")
+    if demo:
+        if auto_demo:
+            print(f" No se encontró {ENV_FILENAME}, así que arranco en MODO DEMOSTRACIÓN.")
+            print(" (Para usar el data warehouse, crea ese fichero junto al .exe;")
+            print("  tienes la plantilla en registro-horario.env.example)")
+        else:
+            print(" MODO DEMOSTRACIÓN — datos de ejemplo, no se conecta a Azure SQL.")
+        print(f" Usuario: {os.environ.get('RHP_DEFAULT_ADMIN_USER', 'User')}"
+              f"      Contraseña: {os.environ.get('RHP_DEFAULT_ADMIN_PASSWORD', 'Cambiar2025!!!')}")
     else:
         print(f" Configuración: {env_path if applied else '(variables de entorno)'}")
         print(f" Backend de base de datos: {backend}")
@@ -148,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
     print(" Para detener el servidor: Ctrl+C (o detén la tarea/servicio)")
     print("=" * 68)
 
-    open_browser = args.open_browser if args.open_browser is not None else args.demo
+    open_browser = args.open_browser if args.open_browser is not None else demo
     if open_browser:
         _open_browser_later(url)
 
