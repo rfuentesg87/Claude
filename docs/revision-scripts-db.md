@@ -22,6 +22,73 @@ Todo eso hay que comprobarlo con el MCP de SQL de solo lectura antes de aplicar 
 
 ---
 
+## Actualización del 8 de septiembre — solo vistas en `gold`
+
+**Restricción nueva del propietario del dato:** en `gold` solo son fiables las vistas
+`gold.vw_*`. Las tablas de `gold` no se actualizan. Eso invalidaba de golpe media Fase 1,
+porque las vistas de la ficha leían siete tablas de `gold`: `DimCustomer`,
+`DimSalesperson`, `DimProduct`, `DimDate`, `DimLocation`, `FactSalesOrderLine` e
+`InventorySnapshotCurrent`. Peor aún, la regla de oro 4 —la que resuelve la cartera y
+sostiene toda la RLS— se apoyaba en `gold.DimCustomer`. Un CRM que decide quién ve a qué
+cliente con una tabla congelada es un CRM que reparte la cartera mal y sin avisar.
+
+**Qué se ha hecho:** `db/00_vistas_base_erp.sql` crea la capa `crm_v.Erp*` como única
+frontera con el ERP, y los scripts 02 y 06 se han reescrito para consumirla. Ninguna
+vista del CRM nombra ya una tabla de `gold`. La regla 10 de `CLAUDE.md` lo fija.
+
+Los nombres de columna **no son suposiciones**: salen del SQL que ya está en producción
+en los workflows de n8n (informe mensual de ventas, panel de logística). De ahí vienen
+tres correcciones importantes:
+
+### B-6. `bc` es multiempresa y ningún script lo contemplaba
+
+Todas las tablas de `bc` llevan `[$company]`, y todas las consultas de producción unen
+por ella. Los scripts del CRM no la mencionaban en ningún sitio. Con dos empresas en BC,
+un cliente que exista en las dos se cuenta dos veces: la cartera muestra duplicados, la
+facturación de la ficha se dobla y nadie lo nota porque el número «parece» plausible.
+
+Ahora el alcance se decide en `crm_v.ErpCompania` y en ningún otro sitio. Por defecto
+devuelve todas las empresas, que es lo que hacen hoy los informes; el bloque de
+comprobación del script 00 incluye la consulta que dice si hay códigos de cliente
+repetidos entre empresas, que es la que decide si hay que restringirlo.
+
+### B-7. La notación de columnas de `bc` estaba mal documentada
+
+`db/01` decía `bc.Customer.No_`. En esta réplica las columnas conservan la notación de
+Business Central, con puntos y espacios: `[No.]`, `[Sell-to Customer No.]`,
+`[Document Type]`, `[Outstanding Quantity]`. Cualquiera que escribiese `No_` se habría
+llevado un «Invalid column name» sin entender por qué. Corregido en los comentarios de
+`db/01` y fijado como convención en `CLAUDE.md`.
+
+### La cartera de pedidos ya no hay que inventarla
+
+`gold.FactSalesOrderLine` se sustituye por `bc.[Sales Line]` con `[Document Type] = 1` y
+`[Outstanding Quantity] <> 0`, unida a `bc.[Sales Header]` para la fecha de pedido. Es
+literalmente el criterio del nodo «SQL Cartera de Pedidos» del informe mensual, que
+lleva meses cuadrando, así que el CRM y el informe darán la misma cifra. Como efecto
+secundario desaparecen los saltos por `DimDate` con `DateSK`, que eran dos joins y una
+tabla no actualizada, y el CRM lee las fechas directamente.
+
+### Qué cambia de los hallazgos anteriores
+
+- **M-2 (duplicados por dimensiones tipo 2): resuelto.** El comercial se une ahora
+  agrupado por código, así que la cabecera no puede duplicar filas por ese motivo.
+  `crm_v.ErpArticulo` se agrupa igual en `CatalogoCliente`.
+- **A-6 (propietarios de esquema): más importante que antes.** Las vistas de `crm_v`
+  ahora leen `bc` directamente, y el script 03 deniega `bc` a `crm_app`. La ficha
+  funciona solo si `crm_v` y `bc` tienen el mismo propietario. Es la primera consulta
+  que hay que lanzar.
+- **A-1 (dos fuentes de verdad de la cartera): sigue en pie**, y ahora está más claro
+  cuál manda. `crm_v.ErpCliente` (o sea `bc.[Customer]`) es la verdad; la copia de
+  `SalespersonCode` en `core.Empresa`, `core.Actividad`, `core.Tarea`,
+  `crm.Oportunidad` y `crm.Presupuesto` es la que hay que sincronizar.
+- **`crm_v.ErpStock` es lo menos verificado del script 00.** El panel de logística ya
+  calcula stock y caducidades con SQL contrastado; hay que traer esa consulta en vez de
+  mantener dos formas de contar el mismo stock. Solo afecta a `CatalogoCliente`, que es
+  de la fase de presupuestos, así que no bloquea la Fase 1.
+
+---
+
 ## Bloqueantes — fallan seguro, o fallan en silencio
 
 ### B-1. `crm_v.ClienteCronologia` está roto: UNION ALL con `NULL` sin tipar

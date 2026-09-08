@@ -15,7 +15,7 @@
 
    Flujo: borrador local -> POST salesQuote + salesQuoteLines -> BC valora
    -> GET devuelve totales -> envío -> aceptado -> Microsoft.NAV.makeOrder
-   -> seguimiento del pedido desde gold.FactSalesOrderLine.
+   -> seguimiento del pedido desde crm_v.ErpPedidoLinea (capa base, script 00).
    ===================================================================== */
 
 SET ANSI_NULLS ON;
@@ -372,31 +372,37 @@ WITH ult AS (
     FROM crm_v.VentaLinea vl
     WHERE vl.ItemNo IS NOT NULL AND vl.TipoDocumento = N'FACTURA'
 ), stock AS (
-    SELECT ItemNo, SUM(QtyOnHand) AS QtyOnHand, MIN(ExpirationDate) AS CaducidadMasProxima
-    FROM gold.InventorySnapshotCurrent
-    WHERE BlockedFlag = 0
-    GROUP BY ItemNo
+    SELECT s.ItemNo,
+           SUM(s.StockDisponible)      AS QtyOnHand,
+           MIN(s.CaducidadMasProxima)  AS CaducidadMasProxima
+    FROM crm_v.ErpStock s
+    GROUP BY s.ItemNo
 )
 SELECT
     mc.CustomerNo,
     dp.ItemNo,
-    dp.Description                  AS Descripcion,
-    dp.ItemCategoryCode             AS Categoria,
-    dp.BaseUOM                      AS UnidadBase,
-    dp.BlockedFlag                  AS Bloqueado,
+    dp.Descripcion,
+    dp.Categoria,
+    dp.UnidadBase,
+    dp.Bloqueado,
     u.PrecioUnitario                AS UltimoPrecioCliente,
     u.Fecha                         AS UltimaVentaCliente,
     u.MargenPct                     AS UltimoMargenCliente,
-    c.LastDirectCost                AS CosteUltimaCompra,
-    c.UnitCost_Standard             AS CosteEstandar,
+    c.CosteUltimaCompra,
+    c.CosteEstandar,
     ISNULL(s.QtyOnHand, 0)          AS StockDisponible,
     s.CaducidadMasProxima
 FROM core.vw_MiCartera mc
-CROSS JOIN gold.DimProduct dp
+CROSS JOIN (
+    SELECT ItemNo, MIN(Descripcion) AS Descripcion, MIN(Categoria) AS Categoria,
+           MIN(UnidadBase) AS UnidadBase, MAX(Bloqueado) AS Bloqueado
+    FROM crm_v.ErpArticulo
+    WHERE Bloqueado = 0
+    GROUP BY ItemNo
+) dp
 LEFT JOIN ult u   ON u.CustomerNo = mc.CustomerNo AND u.ItemNo = dp.ItemNo AND u.rn = 1
-LEFT JOIN gold.vw_ProductUnitCost c ON c.ItemNo = dp.ItemNo
-LEFT JOIN stock s ON s.ItemNo = dp.ItemNo
-WHERE dp.IsCurrent = 1 AND dp.BlockedFlag = 0;
+LEFT JOIN crm_v.ErpCoste c ON c.ItemNo = dp.ItemNo
+LEFT JOIN stock s ON s.ItemNo = dp.ItemNo;
 GO
 
 CREATE OR ALTER VIEW crm_v.Presupuesto
@@ -425,7 +431,7 @@ LEFT JOIN crm.Oportunidad o ON o.OportunidadId = p.OportunidadId;
 GO
 
 /* Seguimiento del pedido sin salir del CRM: el presupuesto convertido
-   se enlaza con las líneas vivas de gold.FactSalesOrderLine. */
+   se enlaza con las líneas vivas de crm_v.ErpPedidoLinea. */
 CREATE OR ALTER VIEW crm_v.PedidoSeguimiento
 AS
 SELECT
@@ -435,24 +441,22 @@ SELECT
     e.Nombre                        AS Cliente,
     e.BcCustomerNo                  AS CustomerNo,
     p.SalespersonCode,
-    f.[LineNo]                      AS Linea,
-    dp.ItemNo,
-    dp.Description                  AS Articulo,
-    f.Quantity                      AS Cantidad,
-    f.QuantityShipped               AS Enviado,
-    f.QuantityOutstanding           AS Pendiente,
-    f.OutstandingAmount             AS ImportePendiente,
-    de.[Date]                       AS FechaEntregaSolicitada,
-    CASE WHEN f.IsCompletelyShipped = 1 THEN N'enviado'
-         WHEN f.QuantityShipped > 0     THEN N'parcial'
-         WHEN de.[Date] < CAST(GETDATE() AS DATE) THEN N'retrasado'
+    f.Linea,
+    f.ItemNo,
+    f.ArticuloDescripcion           AS Articulo,
+    f.Cantidad,
+    f.CantidadEnviada               AS Enviado,
+    f.CantidadPendiente             AS Pendiente,
+    f.ImportePendiente,
+    f.FechaEntregaSolicitada,
+    CASE WHEN f.CantidadPendiente = 0             THEN N'enviado'
+         WHEN f.CantidadEnviada > 0               THEN N'parcial'
+         WHEN f.FechaEntregaSolicitada < CAST(SYSUTCDATETIME() AS DATE) THEN N'retrasado'
          ELSE N'pendiente' END      AS EstadoLinea,
-    DATEDIFF(DAY, CAST(GETDATE() AS DATE), de.[Date]) AS DiasParaEntrega
+    DATEDIFF(DAY, CAST(SYSUTCDATETIME() AS DATE), f.FechaEntregaSolicitada) AS DiasParaEntrega
 FROM crm.Presupuesto p
 JOIN core.Empresa e ON e.EmpresaId = p.EmpresaId
-JOIN gold.FactSalesOrderLine f ON f.DocumentNo = p.BcOrderNo
-LEFT JOIN gold.DimProduct dp ON dp.ProductSK = f.ProductSK
-LEFT JOIN gold.DimDate de    ON de.DateSK = f.RequestedDeliveryDateSK
+JOIN crm_v.ErpPedidoLinea f ON f.PedidoNo = p.BcOrderNo
 WHERE p.BcOrderNo IS NOT NULL;
 GO
 

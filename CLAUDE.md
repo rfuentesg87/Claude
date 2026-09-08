@@ -13,7 +13,7 @@ Módulos: primero comercial, después compras/proveedores, después incidencias.
 
 ## Reglas de oro
 
-Estas nueve reglas salen de investigar la base de datos real. Romper cualquiera de
+Estas diez reglas salen de investigar la base de datos real. Romper cualquiera de
 ellas produce un fallo silencioso que no se detecta hasta que un comercial se queja.
 
 1. **Nunca crear, alterar ni borrar objetos en `bc`, `gold`, `silver`, `snap`,
@@ -33,11 +33,11 @@ ellas produce un fallo silencioso que no se detecta hasta que un comercial se qu
    - `Profit_Definitivo` ya viene con el signo correcto → se suma directamente.
    - `Quantity` **no** lleva signo → hay que invertirla en abonos.
 
-4. **La cartera se resuelve contra `gold.DimCustomer WHERE IsCurrent = 1`**, nunca
-   contra `ComercialAsignado` de la vista de margen. `DimCustomer` es una dimensión
-   tipo 2 y esa columna lleva la asignación histórica de cada línea. Caso real:
-   `CL00691` está asignado hoy a LBP pero sus líneas de 2025 llevan CGA; filtrando mal,
-   LBP no vería el histórico de su cliente y CGA seguiría viéndolo.
+4. **La cartera se resuelve contra `crm_v.ErpCliente`**, que lee `bc.[Customer]`: el
+   maestro vivo, con la asignación de comercial actual. Nunca contra
+   `ComercialAsignado` de la vista de margen, que lleva la asignación histórica de cada
+   línea. Caso real: `CL00691` está asignado hoy a LBP pero sus líneas de 2025 llevan
+   CGA; filtrando mal, LBP no vería el histórico de su cliente y CGA seguiría viéndolo.
 
 5. **Business Central pone los precios.** El CRM manda cliente, artículos y cantidades;
    BC aplica tarifa, divisa y unidad de medida y devuelve las líneas valoradas. El CRM
@@ -60,6 +60,14 @@ ellas produce un fallo silencioso que no se detecta hasta que un comercial se qu
 
 9. **Los adjuntos guardan metadatos y URL**, nunca el binario. Los ficheros van a
    SharePoint o Blob Storage.
+
+10. **En `gold` solo se leen VISTAS (`gold.vw_*`).** Las tablas de `gold` —
+    `DimCustomer`, `DimSalesperson`, `DimProduct`, `DimDate`, `DimLocation`,
+    `FactSalesOrderLine`, `InventorySnapshotCurrent` — **no se actualizan**, así que
+    leerlas devuelve cifras viejas sin dar ningún error: el fallo silencioso perfecto.
+    Todo lo que el CRM necesita del ERP entra por la capa base `crm_v.Erp*` de
+    `db/00_vistas_base_erp.sql`, que lee vistas de `gold` y tablas de `bc`. Ninguna
+    otra vista del CRM vuelve a nombrar `gold` ni `bc` directamente.
 
 ---
 
@@ -109,18 +117,27 @@ sobre la base de datos entera, solo sobre sus tablas.
 | `crm` | Etapa, MotivoPerdida, Competidor, Oportunidad, OportunidadLinea, OportunidadCompetidor, OportunidadHistorico, Presupuesto, PresupuestoLinea |
 | `crm_v` | Capa de vistas que consume la API. Única frontera con `gold` |
 
-### Esquemas del ERP que se leen
+### Capa base de lectura del ERP — `crm_v.Erp*` (script 00)
 
-| Objeto | Para qué |
-|---|---|
-| `gold.vw_FactMargenLineaFactura` | Facturación y margen 2018–2026. La fuente de todo |
-| `gold.DimCustomer` | Clientes (SCD tipo 2, filtrar `IsCurrent = 1`) |
-| `gold.DimSalesperson` | Comerciales |
-| `gold.DimProduct`, `gold.DimDate`, `gold.DimLocation` | Dimensiones |
-| `gold.FactSalesOrderLine` | Pedidos abiertos y seguimiento (`IsOpen`, `QuantityOutstanding`) |
-| `gold.vw_ProductUnitCost` | Coste para el margen estimado del presupuesto |
-| `gold.InventorySnapshotCurrent` | Stock y caducidades |
-| `bc.Contact` | 3.527 contactos, 2.235 con email: base para la carga inicial |
+Única frontera con el ERP. Lo que hay debajo no lo nombra nadie más.
+
+| Vista base | Origen | Sustituye a | Para qué |
+|---|---|---|---|
+| `crm_v.VentaLinea` | `gold.vw_FactMargenLineaFactura` ✔ vista | — | Facturación y margen 2018–2026. La fuente de todo |
+| `crm_v.ErpCliente` | `bc.[Customer]` | `gold.DimCustomer` | Clientes y **cartera actual** (`[Salesperson Code]`) |
+| `crm_v.ErpComercial` | `bc.[Salesperson_Purchaser]` | `gold.DimSalesperson` | Nombre del comercial |
+| `crm_v.ErpArticulo` | `bc.[Item]` | `gold.DimProduct` | Catálogo |
+| `crm_v.ErpPedidoLinea` | `bc.[Sales Line]` + `bc.[Sales Header]` | `gold.FactSalesOrderLine`, `DimDate`, `DimLocation` | Cartera de pedidos y seguimiento |
+| `crm_v.ErpCoste` | `gold.vw_ProductUnitCost` ✔ vista | — | Coste para el margen estimado |
+| `crm_v.ErpStock` | `bc.[Item Ledger Entry]` | `gold.InventorySnapshotCurrent` | Stock y caducidades. **Pendiente de validar** contra el SQL del panel de logística |
+| `crm_v.ErpCompania` | `bc.[Customer]` | — | Empresas de BC en alcance. El único sitio donde se filtra `[$company]` |
+
+`bc.Contact` (3.527 contactos, 2.235 con email) se lee aparte, en la carga inicial de
+`core.Contacto`.
+
+**Cartera de pedidos verificada:** `bc.[Sales Line]` con `[Document Type] = 1` y
+`[Outstanding Quantity] <> 0`. Es el mismo criterio que el informe mensual de ventas de
+n8n, que llena la hoja «Cartera de Pedidos» y lleva meses cuadrando.
 
 ### Cifras reales verificadas (septiembre 2026)
 
@@ -144,6 +161,12 @@ sobre la base de datos entera, solo sobre sus tablas.
   concurrencia optimista.
 - Los scripts son idempotentes: `IF OBJECT_ID(...) IS NULL` y `CREATE OR ALTER`.
 - `LineNo` y `Date` son palabras reservadas en T-SQL: van entre corchetes.
+- **Las columnas de `bc` conservan la notación de Business Central, con puntos y
+  espacios:** `[No.]`, `[Sell-to Customer No.]`, `[Document Type]`,
+  `[Outstanding Quantity]`. No es `No_`. Siempre entre corchetes.
+- **`bc` es multiempresa:** todas las tablas llevan `[$company]` y hay que unir por ella
+  además de por la clave. Sin eso, un cliente que exista en dos empresas de BC se cuenta
+  dos veces. El alcance se decide en `crm_v.ErpCompania` y en ningún otro sitio.
 
 ---
 
@@ -151,9 +174,13 @@ sobre la base de datos entera, solo sobre sus tablas.
 
 ### Hecho — scripts en `db/`, ejecutar en orden
 
+Orden de ejecución: **01 → 00 → 02 → 03 → 04 → 05 → 06.** El 00 va después del 01
+porque necesita el esquema `crm_v`, y antes del 02 porque el 02 se apoya en él.
+
 | Script | Contenido |
 |---|---|
 | `01_esquemas_ddl.sql` | Esquemas `core`, `crm`, `crm_v` y todas las tablas base |
+| `00_vistas_base_erp.sql` | Capa base `crm_v.Erp*`: única frontera con el ERP |
 | `02_vistas_ficha360.sql` | `crm_v.VentaLinea`, identidad, cartera y vistas de la ficha |
 | `03_seguridad_rls.sql` | Usuario `crm_app`, permisos y política de RLS |
 | `04_propiedades_personalizadas.sql` | Propiedades personalizables (definiciones + JSON) |

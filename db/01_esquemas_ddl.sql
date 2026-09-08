@@ -5,7 +5,9 @@
 
    REGLA DE ORO: este script NO crea, altera ni borra NADA dentro de
    los esquemas bc, gold, silver, snap, stg_*, ctl ni config.
-   Todas las dependencias van en un solo sentido: crm -> gold -> bc.
+   Todas las dependencias van en un solo sentido: crm -> crm_v -> ERP,
+   y del ERP solo se leen las vistas gold.vw_* y las tablas de bc a
+   través de la capa base crm_v.Erp* del script 00.
    ===================================================================== */
 
 SET ANSI_NULLS ON;
@@ -35,7 +37,7 @@ CREATE TABLE core.Usuario (
     EntraObjectId       UNIQUEIDENTIFIER NULL,
     Email               NVARCHAR(200)  NOT NULL,
     Nombre              NVARCHAR(200)  NOT NULL,
-    SalespersonCode     NVARCHAR(20)   NULL,   -- código en BC (gold.DimSalesperson)
+    SalespersonCode     NVARCHAR(20)   NULL,   -- código en BC (crm_v.ErpComercial)
     Rol                 NVARCHAR(20)   NOT NULL CONSTRAINT DF_Usuario_Rol DEFAULT N'comercial',
     Activo              BIT            NOT NULL CONSTRAINT DF_Usuario_Activo DEFAULT 1,
     FechaCreacion       DATETIME2(3)   NOT NULL CONSTRAINT DF_Usuario_FC DEFAULT SYSUTCDATETIME(),
@@ -78,7 +80,7 @@ GO
 IF OBJECT_ID('core.Empresa') IS NULL
 CREATE TABLE core.Empresa (
     EmpresaId           INT IDENTITY(1,1) NOT NULL,
-    BcCustomerNo        NVARCHAR(20)   NULL,   -- bc.Customer.No_ / gold.DimCustomer.CustomerNo
+    BcCustomerNo        NVARCHAR(20)   NULL,   -- bc.[Customer].[No.] / crm_v.ErpCliente.CustomerNo
     BcVendorNo          NVARCHAR(20)   NULL,   -- reservado para el módulo de compras
     Nombre              NVARCHAR(200)  NOT NULL,
     NombreComercial     NVARCHAR(200)  NULL,
@@ -357,7 +359,7 @@ CREATE TABLE crm.OportunidadLinea (
     LineaId             BIGINT IDENTITY(1,1) NOT NULL,
     OportunidadId       BIGINT         NOT NULL,
     Orden               INT            NOT NULL CONSTRAINT DF_OportLinea_Orden DEFAULT 1,
-    BcItemNo            NVARCHAR(20)   NULL,   -- gold.DimProduct.ItemNo
+    BcItemNo            NVARCHAR(20)   NULL,   -- crm_v.ErpArticulo.ItemNo
     Descripcion         NVARCHAR(250)  NOT NULL,
     Cantidad            DECIMAL(18,4)  NULL,
     UnidadMedida        NVARCHAR(20)   NULL,
@@ -443,7 +445,7 @@ GO
 
 /* --- Alta de usuarios ------------------------------------------------
    Rellena el email real de Entra ID de cada comercial y ejecuta.
-   Los códigos salen de gold.DimSalesperson (activos con facturación).
+   Los códigos salen de crm_v.ErpComercial (activos con facturación).
    Dirección y admin no necesitan filas en core.UsuarioCartera.
    -------------------------------------------------------------------- */
 /*

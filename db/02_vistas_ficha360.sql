@@ -9,6 +9,10 @@
    únicamente contiene 2026); mezclarlas daría dos cifras distintas para
    el mismo cliente según la pantalla.
 
+   En gold solo se leen VISTAS. Todo lo demás del ERP entra por la capa
+   base crm_v.Erp* del script 00: ninguna vista de este fichero nombra una
+   tabla de gold.
+
    Convenio de signos verificado en la vista de margen:
      LineAmount_Neto    -> ya viene en negativo para los ABONOS
      Profit_Definitivo  -> ya viene con el signo correcto
@@ -42,22 +46,22 @@ WHERE u.Activo = 1
 GO
 
 /* Clientes visibles para el usuario actual.
-   La cartera se resuelve SIEMPRE contra gold.DimCustomer WHERE IsCurrent=1,
-   nunca contra ComercialAsignado de la vista de margen: esa columna es la
-   asignación histórica de cada línea. Ejemplo real: Economat Des Armées
-   está asignado hoy a LBP, pero sus líneas de 2025 llevan CGA. Filtrando
-   por la vista de margen, LBP no vería el histórico de su propio cliente
-   y CGA seguiría viéndolo. */
+   La cartera se resuelve SIEMPRE contra crm_v.ErpCliente, que lee el
+   maestro vivo bc.[Customer] y por tanto lleva la asignación de comercial
+   ACTUAL. Nunca contra ComercialAsignado de la vista de margen: esa
+   columna es la asignación histórica de cada línea. Ejemplo real: Economat
+   Des Armées está asignado hoy a LBP, pero sus líneas de 2025 llevan CGA.
+   Filtrando por la vista de margen, LBP no vería el histórico de su propio
+   cliente y CGA seguiría viéndolo. */
 CREATE OR ALTER VIEW core.vw_MiCartera
 AS
-SELECT dc.CustomerNo, dc.CustomerName, dc.SalespersonCode
-FROM gold.DimCustomer dc
-WHERE dc.IsCurrent = 1
-  AND ( EXISTS (SELECT 1 FROM core.vw_UsuarioActual ua
-                WHERE ua.Rol IN (N'direccion', N'admin', N'lectura'))
-     OR EXISTS (SELECT 1 FROM core.vw_UsuarioActual ua
-                JOIN core.UsuarioCartera uc ON uc.UsuarioId = ua.UsuarioId
-                WHERE uc.SalespersonCode = dc.SalespersonCode) );
+SELECT dc.CustomerNo, dc.CustomerName, dc.SalespersonCode, dc.PaisCodigo, dc.Bloqueado
+FROM crm_v.ErpCliente dc
+WHERE EXISTS (SELECT 1 FROM core.vw_UsuarioActual ua
+              WHERE ua.Rol IN (N'direccion', N'admin', N'lectura'))
+   OR EXISTS (SELECT 1 FROM core.vw_UsuarioActual ua
+              JOIN core.UsuarioCartera uc ON uc.UsuarioId = ua.UsuarioId
+              WHERE uc.SalespersonCode = dc.SalespersonCode);
 GO
 
 /* =====================================================================
@@ -125,8 +129,8 @@ SELECT
     mc.CustomerName                                     AS Cliente,
     mc.SalespersonCode                                  AS ComercialCodigo,
     ds.SalespersonName                                  AS ComercialNombre,
-    dc.CountryCode                                      AS PaisCodigo,
-    dc.BlockedFlag                                      AS Bloqueado,
+    mc.PaisCodigo,
+    mc.Bloqueado,
     e.EmpresaId,
     e.Segmento,
     e.PotencialAnual,
@@ -152,16 +156,20 @@ SELECT
     act.UltimaActividad,
     DATEDIFF(DAY, act.UltimaActividad, CAST(GETDATE() AS DATE))             AS DiasDesdeUltimaActividad
 FROM core.vw_MiCartera mc
-LEFT JOIN gold.DimCustomer dc  ON dc.CustomerNo = mc.CustomerNo AND dc.IsCurrent = 1
-LEFT JOIN gold.DimSalesperson ds ON ds.SalespersonCode = mc.SalespersonCode
+/* Agrupado por código: si bc tiene el mismo comercial en varias empresas,
+   sin el GROUP BY la cabecera duplicaría filas del cliente. */
+LEFT JOIN (
+    SELECT SalespersonCode, MIN(SalespersonName) AS SalespersonName
+    FROM crm_v.ErpComercial
+    GROUP BY SalespersonCode
+) ds ON ds.SalespersonCode = mc.SalespersonCode
 LEFT JOIN v                    ON v.CustomerNo = mc.CustomerNo
 LEFT JOIN core.Empresa e       ON e.BcCustomerNo = mc.CustomerNo
 LEFT JOIN (
-    SELECT dcp.CustomerNo, SUM(f.OutstandingAmount) AS CarteraPedidos
-    FROM gold.FactSalesOrderLine f
-    JOIN gold.DimCustomer dcp ON dcp.CustomerSK = f.CustomerSK
-    WHERE f.IsOpen = 1
-    GROUP BY dcp.CustomerNo
+    SELECT p.CustomerNo, SUM(p.ImportePendiente) AS CarteraPedidos
+    FROM crm_v.ErpPedidoLinea p
+    WHERE p.EsAbierta = 1
+    GROUP BY p.CustomerNo
 ) ped ON ped.CustomerNo = mc.CustomerNo
 LEFT JOIN (
     SELECT o.EmpresaId,
@@ -264,33 +272,29 @@ GO
 CREATE OR ALTER VIEW crm_v.ClientePedidosAbiertos
 AS
 SELECT
-    dc.CustomerNo,
-    f.DocumentNo                    AS PedidoNo,
-    f.[LineNo]                      AS Linea,
-    dp.ItemNo,
-    dp.Description                  AS ArticuloDescripcion,
-    dd.[Date]                       AS FechaPedido,
-    de.[Date]                       AS FechaEntregaSolicitada,
-    f.Quantity                      AS Cantidad,
-    f.QuantityShipped               AS CantidadEnviada,
-    f.QuantityOutstanding           AS CantidadPendiente,
-    f.UnitPrice                     AS PrecioUnitario,
-    f.OutstandingAmount             AS ImportePendiente,
-    dl.LocationCode                 AS Almacen,
-    f.IsStrategicOrder              AS EsEstrategico,
-    f.IsFrameworkAgreement          AS EsAcuerdoMarco,
-    f.IsExport                      AS EsExportacion,
-    CASE WHEN de.[Date] < CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END AS EnRetraso,
-    DATEDIFF(DAY, CAST(GETDATE() AS DATE), de.[Date])            AS DiasParaEntrega
-FROM gold.FactSalesOrderLine f
-JOIN gold.DimCustomer dc ON dc.CustomerSK = f.CustomerSK
-LEFT JOIN gold.DimProduct dp ON dp.ProductSK = f.ProductSK
-LEFT JOIN gold.DimDate dd ON dd.DateSK = f.DateSK
-LEFT JOIN gold.DimDate de ON de.DateSK = f.RequestedDeliveryDateSK
-LEFT JOIN gold.DimLocation dl ON dl.LocationSK = f.LocationSK
-WHERE f.IsOpen = 1
-  AND EXISTS (SELECT 1 FROM core.vw_MiCartera mc WHERE mc.CustomerNo = dc.CustomerNo);
+    p.CustomerNo,
+    p.PedidoNo,
+    p.Linea,
+    p.ItemNo,
+    p.ArticuloDescripcion,
+    p.FechaPedido,
+    p.FechaEntregaSolicitada,
+    p.Cantidad,
+    p.CantidadEnviada,
+    p.CantidadPendiente,
+    p.PrecioUnitario,
+    p.ImportePendiente,
+    p.Almacen,
+    CASE WHEN p.FechaEntregaSolicitada < CAST(SYSUTCDATETIME() AS DATE) THEN 1 ELSE 0 END AS EnRetraso,
+    DATEDIFF(DAY, CAST(SYSUTCDATETIME() AS DATE), p.FechaEntregaSolicitada)               AS DiasParaEntrega
+FROM crm_v.ErpPedidoLinea p
+WHERE p.EsAbierta = 1
+  AND EXISTS (SELECT 1 FROM core.vw_MiCartera mc WHERE mc.CustomerNo = p.CustomerNo);
 GO
+/* Las marcas EsEstrategico, EsAcuerdoMarco y EsExportacion venían de
+   gold.FactSalesOrderLine, que no se puede usar. Si el comercial las
+   necesita, hay que localizar su origen en bc y añadirlas a
+   crm_v.ErpPedidoLinea, no volver a la tabla de gold. */
 
 /* --- Facturas (nivel documento) -------------------------------------- */
 CREATE OR ALTER VIEW crm_v.ClienteFacturas
