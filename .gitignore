@@ -11,3 +11,6 @@ build/
 
 # Sistema
 .DS_Store
+
+# Ajustes locales de Claude Code (por máquina, no del proyecto)
+.claude/settings.local.json
