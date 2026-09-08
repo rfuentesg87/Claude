@@ -1,0 +1,577 @@
+<title>Inicio del comercial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#F4F6F4; --surface:#FFFFFF; --surface-2:#EDF0EE; --surface-3:#E4E9E6;
+  --ink:#171C1A; --ink-2:#414B47; --ink-muted:#6A736F;
+  --line:#DCE2DF; --line-strong:#C4CCC8;
+  --accent:#0F4C5C; --accent-ink:#0F4C5C; --accent-soft:#E1EDF0; --accent-line:#B9D5DC;
+  --crit:#A33A2B; --crit-soft:#F7E7E4;
+  --warn:#B77A1F; --warn-soft:#FAF0DE;
+  --good:#2F7D4F; --good-soft:#E4F1E9;
+  --bar:#0F4C5C; --bar-dim:#9FC1CB; --grid:#E6EAE8;
+  --shadow:0 1px 2px rgba(23,28,26,.06),0 4px 14px rgba(23,28,26,.05);
+  --radius:6px;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --display:"Archivo","IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#101513; --surface:#171D1B; --surface-2:#1E2523; --surface-3:#252D2B;
+    --ink:#E7ECE9; --ink-2:#B9C3BF; --ink-muted:#8B9793;
+    --line:#2A3230; --line-strong:#3A4441;
+    --accent:#5FB0C4; --accent-ink:#7CC3D4; --accent-soft:#14313A; --accent-line:#215A69;
+    --crit:#C4515A; --crit-soft:#31191C;
+    --warn:#AD8C24; --warn-soft:#2B2410;
+    --good:#2F9578; --good-soft:#122A24;
+    --bar:#4A9DB3; --bar-dim:#1E4854; --grid:#232B29;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#101513; --surface:#171D1B; --surface-2:#1E2523; --surface-3:#252D2B;
+  --ink:#E7ECE9; --ink-2:#B9C3BF; --ink-muted:#8B9793;
+  --line:#2A3230; --line-strong:#3A4441;
+  --accent:#5FB0C4; --accent-ink:#7CC3D4; --accent-soft:#14313A; --accent-line:#215A69;
+  --crit:#C4515A; --crit-soft:#31191C;
+  --warn:#AD8C24; --warn-soft:#2B2410;
+  --good:#2F9578; --good-soft:#122A24;
+  --bar:#4A9DB3; --bar-dim:#1E4854; --grid:#232B29;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.011em}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:var(--accent-ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.demo-flag{background:var(--warn-soft);color:var(--ink-2);border-bottom:1px solid var(--line);
+  padding:7px 22px;font-size:12px;display:flex;gap:8px;align-items:center}
+.demo-flag b{color:var(--ink);font-weight:600}
+.demo-dot{width:6px;height:6px;border-radius:50%;background:var(--warn);flex:none}
+
+/* ---------- barra superior ---------- */
+.topbar{position:sticky;top:0;z-index:30;background:var(--surface);border-bottom:1px solid var(--line);padding:11px 22px 0}
+.bar1{display:flex;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:9px;flex:none}
+.brand .mark{width:26px;height:26px;border-radius:5px;background:var(--accent);color:#fff;display:grid;place-items:center;
+  font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:-.02em}
+:root[data-theme="dark"] .brand .mark,
+:root:not([data-theme="light"]) .brand .mark{color:#0B1416}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .brand .mark{color:#fff}}
+.brand .name{font-family:var(--display);font-weight:600;font-size:14.5px;white-space:nowrap}
+
+.searchbox{position:relative;flex:1;max-width:440px;min-width:0}
+.searchbox input{width:100%;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--ink);
+  border-radius:20px;padding:7px 13px 7px 32px;font:inherit;font-size:13px}
+.searchbox input::placeholder{color:var(--ink-muted)}
+.searchbox .mag{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-muted);font-size:13px;pointer-events:none}
+.results{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--line-strong);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:5px 0;z-index:40;max-height:320px;overflow-y:auto}
+.results .rgroup{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-muted);
+  font-weight:600;padding:8px 13px 3px}
+.results .ritem{display:flex;gap:9px;align-items:baseline;padding:6px 13px;cursor:pointer}
+.results .ritem:hover,.results .ritem:focus-visible{background:var(--surface-2)}
+.results .ritem .rmeta{margin-left:auto;font-size:11.5px;color:var(--ink-muted);font-family:var(--mono);white-space:nowrap}
+.results .empty{padding:11px 13px;font-size:12.5px;color:var(--ink-muted)}
+
+.userchip{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}
+.userchip .who{font-size:12.5px;text-align:right;line-height:1.25}
+.userchip .who b{display:block;font-weight:600;font-size:13px}
+.userchip .who span{color:var(--ink-muted);font-size:11.5px}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--accent-soft);border:1px solid var(--accent-line);
+  display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:11.5px;color:var(--accent-ink);flex:none}
+.btn{border:1px solid var(--line-strong);background:var(--surface);border-radius:var(--radius);
+  padding:7px 13px;font-size:13px;font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--surface-2);border-color:var(--ink-muted)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn-primary,
+:root:not([data-theme="light"]) .btn-primary{color:#0B1416}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .btn-primary{color:#fff}}
+.btn-primary:hover{filter:brightness(1.08);background:var(--accent);border-color:var(--accent)}
+.btn-sm{padding:4px 10px;font-size:12px}
+
+.nav{display:flex;gap:2px;margin-top:10px;overflow-x:auto}
+.nav a{padding:9px 13px;font-size:13.5px;font-weight:500;color:var(--ink-muted);text-decoration:none;
+  border-bottom:2px solid transparent;white-space:nowrap}
+.nav a:hover{color:var(--ink)}
+.nav a[aria-current="page"]{color:var(--accent-ink);border-bottom-color:var(--accent);font-weight:600}
+.nav a[aria-disabled="true"]{cursor:default}
+.nav a[aria-disabled="true"]:hover{color:var(--ink-muted)}
+
+/* ---------- cabecera de saludo ---------- */
+.hello{padding:18px 22px 0;max-width:1560px;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.hello h1{font-size:21px;font-weight:700}
+.hello .when{font-size:12.5px;color:var(--ink-muted);padding-bottom:2px}
+.hello .scope{margin-left:auto;font-size:12.5px;color:var(--ink-muted);padding-bottom:2px}
+.hello .scope b{color:var(--ink-2);font-weight:600}
+
+.shell{display:grid;grid-template-columns:minmax(0,1fr) 348px;gap:16px;padding:14px 22px 40px;align-items:start;max-width:1560px}
+@media (max-width:1080px){.shell{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.panel-head{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.panel-head h2{font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
+.panel-head .count{font-family:var(--mono);font-size:11px;color:var(--ink-muted);
+  background:var(--surface-2);border-radius:20px;padding:1px 7px;white-space:nowrap}
+.panel-head .link{margin-left:auto;font-size:12px;color:var(--accent-ink);background:none;border:0;padding:2px;white-space:nowrap}
+.panel-head .link:hover{text-decoration:underline}
+.panel-foot{padding:9px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-muted);
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* ---------- tira de KPIs ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin:0 22px;max-width:1560px}
+.kpi{background:var(--surface);padding:13px 15px 14px;min-width:0}
+.kpi .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);font-weight:600}
+.kpi .v{font-family:var(--display);font-size:23px;font-weight:600;margin-top:5px;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;line-height:1.15}
+.kpi .s{font-size:12px;color:var(--ink-muted);margin-top:3px;font-variant-numeric:tabular-nums}
+.kpi .s.up{color:var(--good)} .kpi .s.down{color:var(--crit)}
+.kpi.alert{box-shadow:inset 3px 0 0 var(--crit)}
+.kpi svg.spark{display:block;width:100%;height:32px;margin-top:7px;overflow:visible}
+
+/* ---------- tablas ---------- */
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-muted);
+  font-weight:600;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface)}
+td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface-2)}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px;white-space:nowrap}
+th.num{font-family:var(--sans)}
+.code{font-family:var(--mono);font-size:12px;color:var(--ink-muted)}
+.neg{color:var(--crit)} .pos{color:var(--good)}
+.cliente{font-weight:600;display:flex;gap:7px;align-items:baseline;flex-wrap:wrap}
+.cliente .ficha{font-size:11px;font-weight:500;text-decoration:none;border:1px solid var(--accent-line);
+  background:var(--accent-soft);color:var(--accent-ink);border-radius:20px;padding:0 7px;white-space:nowrap}
+.cliente .ficha:hover{text-decoration:underline}
+.filters{display:flex;gap:6px;padding:11px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.filter{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:3px 11px;font-size:12px;color:var(--ink-muted)}
+.filter[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent-ink);font-weight:600}
+
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:2px 9px;font-size:12px;font-weight:500;
+  border:1px solid transparent;line-height:1.6;white-space:nowrap}
+.chip-neutral{background:var(--surface-2);color:var(--ink-2);border-color:var(--line)}
+.chip-accent{background:var(--accent-soft);color:var(--accent-ink);border-color:var(--accent-line)}
+.chip-crit{background:var(--crit-soft);color:var(--crit);border-color:var(--crit)}
+.chip-warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.chip-good{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+
+/* ---------- pipeline ---------- */
+.legendline{display:flex;gap:14px;align-items:baseline;padding:11px 14px 2px;font-size:12px;color:var(--ink-muted);flex-wrap:wrap}
+.legendline .swatch{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+.pipe{position:relative;padding:6px 14px 4px}
+.pipe-row{display:grid;grid-template-columns:150px minmax(0,1fr) 96px;gap:12px;align-items:center;padding:7px 0}
+.pipe-row .et{font-size:12.5px;min-width:0}
+.pipe-row .et .n{display:block;font-size:11.5px;color:var(--ink-muted);font-variant-numeric:tabular-nums}
+.track{height:20px;background:var(--surface-2);border-radius:3px;position:relative;overflow:hidden}
+.track .total{position:absolute;left:0;top:0;bottom:0;background:var(--bar-dim);border-radius:0 4px 4px 0}
+.track .pond{position:absolute;left:0;top:0;bottom:0;background:var(--bar);border-radius:0 4px 4px 0;
+  box-shadow:0 0 0 2px var(--surface)}
+.pipe-row .val{text-align:right;font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:500}
+.pipe-row:hover .track{outline:1px solid var(--line-strong)}
+@media (max-width:560px){.pipe-row{grid-template-columns:110px minmax(0,1fr);grid-template-areas:"et track" "val val"}
+  .pipe-row .et{grid-area:et}.track{grid-area:track}.pipe-row .val{grid-area:val;text-align:left}}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line-strong);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:8px 10px;font-size:12px;min-width:168px;
+  opacity:0;transition:opacity .1s;z-index:15}
+.tip .t{font-weight:600;margin-bottom:4px;font-size:12px}
+.tip .r{display:flex;justify-content:space-between;gap:14px;font-variant-numeric:tabular-nums}
+.tip .r span:last-child{font-family:var(--mono)}
+
+/* ---------- avisos ---------- */
+.alerts{list-style:none;margin:0;padding:0}
+.alerts li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.alerts li:last-child{border-bottom:0}
+.alerts li:hover{background:var(--surface-2)}
+.a-icon{width:24px;height:24px;border-radius:5px;display:grid;place-items:center;font-size:12px;font-weight:700;
+  font-family:var(--mono);border:1px solid transparent}
+.a-icon.crit{background:var(--crit-soft);color:var(--crit);border-color:var(--crit)}
+.a-icon.warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.a-icon.info{background:var(--accent-soft);color:var(--accent-ink);border-color:var(--accent-line)}
+.a-body strong{font-size:13px;font-weight:600;display:block}
+.a-body .d{font-size:12px;color:var(--ink-muted);margin-top:2px}
+.a-body .act{margin-top:6px}
+
+/* ---------- tareas ---------- */
+.task{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.task input{margin-top:2px;accent-color:var(--accent);width:15px;height:15px;flex:none}
+.task label{font-size:13px;cursor:pointer}
+.task .due{display:block;font-size:11.5px;color:var(--ink-muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.task .due.late{color:var(--crit);font-weight:500}
+.task.done label{text-decoration:line-through;color:var(--ink-muted)}
+.task .prio{margin-left:auto;flex:none}
+
+/* ---------- actividad ---------- */
+.tl{list-style:none;margin:0;padding:4px 0}
+.tl li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:11px;padding:11px 14px;position:relative}
+.tl li::before{content:"";position:absolute;left:26px;top:32px;bottom:-11px;width:1px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl-icon{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;
+  font-family:var(--mono);background:var(--surface-2);color:var(--ink-muted);border:1px solid var(--line);z-index:1}
+.tl-icon.email{background:var(--accent-soft);color:var(--accent-ink);border-color:var(--accent-line)}
+.tl-icon.erp{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+.tl-head{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.tl-head strong{font-size:13.5px;font-weight:600}
+.tl-when{font-size:11.5px;color:var(--ink-muted);font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
+.tl-body{font-size:13px;color:var(--ink-2);margin-top:3px}
+.tl-tag{font-size:11px;color:var(--ink-muted);background:var(--surface-2);border:1px solid var(--line);
+  border-radius:20px;padding:0 7px}
+.foot{padding:0 22px 34px;max-width:1560px;font-size:12px;color:var(--ink-muted)}
+.hidden{display:none}
+</style>
+
+<div class="demo-flag">
+  <span class="demo-dot"></span>
+  <span><b>Prototipo con datos de ejemplo.</b> La pantalla es <code>crm_v.MiCartera</code> más tareas, pipeline y avisos. El buscador y los filtros funcionan; <b>Intendencia Militar de Aquitania</b> abre la ficha real del prototipo.</span>
+</div>
+
+<header class="topbar">
+  <div class="bar1">
+    <div class="brand"><span class="mark">JM</span><span class="name">CRM Jomipsa</span></div>
+    <div class="searchbox">
+      <span class="mag" aria-hidden="true">⌕</span>
+      <input id="q" type="search" autocomplete="off" placeholder="Buscar empresas, contactos y oportunidades"
+             aria-label="Buscador global" aria-expanded="false" aria-controls="results">
+      <div class="results hidden" id="results" role="listbox"></div>
+    </div>
+    <div class="userchip">
+      <button class="btn btn-primary">+ Nueva oportunidad</button>
+      <div class="who"><b>Christelle Gasnier</b><span>Comercial · CGA</span></div>
+      <div class="avatar">CG</div>
+    </div>
+  </div>
+  <nav class="nav" aria-label="Secciones">
+    <a href="#" aria-current="page">Inicio</a>
+    <a href="#" aria-disabled="true" title="No disponible en el prototipo">Empresas</a>
+    <a href="#" aria-disabled="true" title="No disponible en el prototipo">Contactos</a>
+    <a href="#" aria-disabled="true" title="No disponible en el prototipo">Oportunidades</a>
+    <a href="#" aria-disabled="true" title="No disponible en el prototipo">Tareas</a>
+    <a href="#" aria-disabled="true" title="No disponible en el prototipo">Presupuestos</a>
+  </nav>
+</header>
+
+<div class="hello">
+  <h1 id="saludo">Buenos días, Christelle</h1>
+  <span class="when" id="hoy"></span>
+  <span class="scope">Cartera <b>CGA</b> · 187 clientes</span>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="shell">
+  <div class="col">
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Mi cartera</h2><span class="count" id="cartcount">10</span>
+        <button class="link">Ver las 187</button>
+      </div>
+      <div class="filters" id="cartfilters">
+        <button class="filter" aria-pressed="true"  data-f="todos">Por prioridad</button>
+        <button class="filter" aria-pressed="false" data-f="perdido">Perdidos</button>
+        <button class="filter" aria-pressed="false" data-f="en_riesgo">En riesgo</button>
+        <button class="filter" aria-pressed="false" data-f="sin_visita">Sin visita</button>
+        <button class="filter" aria-pressed="false" data-f="inactivo">Inactivos</button>
+        <button class="filter" aria-pressed="false" data-f="en_crecimiento">Creciendo</button>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th>Cliente</th><th>Estado</th><th class="num">12 meses</th><th class="num">Var.</th>
+            <th class="num">Últ. factura</th><th class="num">Últ. actividad</th><th class="num">Pipeline</th>
+          </tr></thead>
+          <tbody id="cartera"></tbody>
+        </table>
+      </div>
+      <div class="panel-foot" id="cartfoot"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Pipeline por etapa</h2><span class="count">20 abiertas</span>
+        <button class="link">Ver tablero</button></div>
+      <div class="legendline">
+        <span><span class="swatch" style="background:var(--bar-dim)"></span>Importe estimado</span>
+        <span><span class="swatch" style="background:var(--bar)"></span>Ponderado por probabilidad</span>
+        <span style="margin-left:auto">Etapas de <code>crm.Etapa</code>, en euros</span>
+      </div>
+      <div class="pipe" id="pipe"><div class="tip" id="ptip"></div></div>
+      <div class="panel-foot"><span>Total abierto <b id="pipeTotal"></b> · ponderado <b id="pipePond"></b></span></div>
+    </section>
+
+  </div>
+
+  <div class="col">
+
+    <section class="panel">
+      <div class="panel-head"><h2>Lo que tengo hoy</h2><span class="count" id="tareacount"></span>
+        <button class="link">Nueva tarea</button></div>
+      <div id="tareas"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Requiere atención</h2><span class="count">4</span></div>
+      <ul class="alerts" id="avisos"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Actividad reciente</h2>
+        <button class="link">Ver toda</button></div>
+      <ul class="tl" id="timeline"></ul>
+    </section>
+
+  </div>
+</div>
+
+<p class="foot">CRM Jomipsa · prototipo de la pantalla de inicio · lo que se ve sale de <code>crm_v.MiCartera</code>, <code>crm_v.Pipeline</code>, <code>core.Tarea</code> y <code>crm_v.ImportacionPendiente</code></p>
+
+<script>
+(function(){
+  "use strict";
+  var FICHA='https://claude.ai/code/artifact/b96606cd-f80c-4352-9aa4-a00fed9f296a';
+  var eur=function(n){return new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);};
+  var mill=function(n){return new Intl.NumberFormat('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n/1e6)+' M€';};
+  var pct=function(n){return (n>0?'+':'')+n.toFixed(1).replace('.',',')+' %';};
+  var dias=function(n){return new Intl.NumberFormat('es-ES').format(n)+' d';};
+
+  /* ---- saludo y fecha ---- */
+  var h=new Date().getHours();
+  document.getElementById('saludo').textContent=
+    (h<13?'Buenos días':(h<20?'Buenas tardes':'Buenas noches'))+', Christelle';
+  document.getElementById('hoy').textContent=
+    new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  /* ---- serie mensual de la cartera, en euros ---- */
+  var serie=[812000,745000,690000,601000,588000,742000,655000,710000,640000,720000,598000,512000];
+  var f12=serie.reduce(function(a,b){return a+b;},0);   /* 8,01 M€ */
+  var fPrev=9150000, profit=2292000;
+
+  /* ---- KPIs ---- */
+  var kpis=[
+    {k:'Facturación 12 m',v:mill(f12),s:pct((f12-fPrev)/fPrev*100)+' vs. 12 previos',
+     c:'down',spark:true},
+    {k:'Margen 12 m',v:'28,6 %',s:mill(profit)+' de beneficio'},
+    {k:'Cartera de pedidos',v:mill(1284600),s:'14 pedidos abiertos'},
+    {k:'Pipeline ponderado',v:mill(3597000),s:'20 oportunidades abiertas'},
+    {k:'Clientes en riesgo',v:'9',s:'de 187 en cartera',alert:true}
+  ];
+  document.getElementById('kpis').innerHTML=kpis.map(function(t){
+    return '<div class="kpi'+(t.alert?' alert':'')+'"><div class="k">'+t.k+'</div>'+
+      '<div class="v">'+t.v+'</div><div class="s '+(t.c||'')+'">'+t.s+'</div>'+
+      (t.spark?'<svg class="spark" id="spark" role="img" aria-label="Facturación de los últimos 12 meses"></svg>':'')+
+      '</div>';
+  }).join('');
+
+  /* ---- sparkline: una sola serie, área tenue + punto final marcado ---- */
+  (function(){
+    var svg=document.getElementById('spark'); if(!svg)return;
+    var W=200,H=34,P=4, lo=Math.min.apply(null,serie), hi=Math.max.apply(null,serie);
+    var x=function(i){return P+i*(W-2*P)/(serie.length-1);};
+    var y=function(v){return H-P-(v-lo)/(hi-lo||1)*(H-2*P);};
+    var line=serie.map(function(v,i){return (i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1);}).join(' ');
+    svg.setAttribute('viewBox','0 0 '+W+' '+H);
+    svg.setAttribute('preserveAspectRatio','none');
+    svg.innerHTML=
+      '<path d="'+line+' L'+x(serie.length-1).toFixed(1)+' '+H+' L'+x(0).toFixed(1)+' '+H+' Z" '+
+        'fill="var(--bar)" fill-opacity=".12" stroke="none"/>'+
+      '<path d="'+line+'" fill="none" stroke="var(--bar)" stroke-width="2" '+
+        'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'+
+      '<circle cx="'+x(serie.length-1).toFixed(1)+'" cy="'+y(serie[serie.length-1]).toFixed(1)+'" r="3" '+
+        'fill="var(--bar)" stroke="var(--surface)" stroke-width="2"/>';
+  })();
+
+  /* ---- mi cartera: crm_v.MiCartera, ordenada por PrioridadAtencion ---- */
+  var estados={
+    perdido:['chip-crit','Perdido'], en_riesgo:['chip-crit','En riesgo'],
+    sin_visita:['chip-warn','Sin visita'], inactivo:['chip-warn','Inactivo'],
+    en_crecimiento:['chip-good','En crecimiento'], estable:['chip-neutral','Estable']
+  };
+  var cartera=[
+    {n:'Comisariado de Fuerzas Terrestres',c:'CL00203',p:'Francia',e:'perdido',      f:0,      pr:1240000,uf:402,ua:168,pl:0,      prio:100},
+    {n:'Agencia Humanitaria del Mediterráneo',c:'CL00518',p:'Italia',e:'en_riesgo',  f:486000, pr:1105000,uf:61, ua:92, pl:315000, prio:80},
+    {n:'Intendencia Militar de Aquitania',c:'CL00742',p:'Francia',e:'en_riesgo',     f:1688000,pr:2771000,uf:4,  ua:214,pl:1155000,prio:80,ficha:true},
+    {n:'Base Aérea 118 · Intendencia',c:'CL00465',p:'Francia',e:'sin_visita',        f:742000, pr:698000, uf:22, ua:231,pl:0,      prio:60},
+    {n:'Protección Civil de Valonia',c:'CL00654',p:'Bélgica',e:'sin_visita',         f:604000, pr:640000, uf:38, ua:197,pl:240000, prio:60},
+    {n:'Escuela de Montaña de Chamonix',c:'CL00733',p:'Francia',e:'inactivo',        f:0,      pr:0,      uf:512,ua:389,pl:96000,  prio:40},
+    {n:'Reserva Estratégica de Ayuda',c:'CL00877',p:'Dinamarca',e:'en_crecimiento',  f:1310000,pr:812000, uf:11, ua:26, pl:680000, prio:0},
+    {n:'Logística Sanitaria Internacional',c:'CL00399',p:'Francia',e:'estable',      f:1024000,pr:986000, uf:9,  ua:34, pl:420000, prio:0},
+    {n:'Guardia Fronteriza · Cuerpo Logístico',c:'CL00812',p:'Francia',e:'estable',  f:892000, pr:915000, uf:17, ua:48, pl:0,      prio:0},
+    {n:'Distribuciones Outdoor Pirineos',c:'CL00590',p:'España',e:'estable',         f:267000, pr:283000, uf:27, ua:71, pl:145000, prio:0}
+  ];
+  var filtro='todos', busca='';
+  function pintaCartera(){
+    var rows=cartera.filter(function(r){
+      var okF=(filtro==='todos')||r.e===filtro;
+      var okQ=!busca||(r.n+' '+r.c+' '+r.p).toLowerCase().indexOf(busca)>=0;
+      return okF&&okQ;
+    });
+    document.getElementById('cartcount').textContent=rows.length;
+    document.getElementById('cartera').innerHTML=rows.length?rows.map(function(r){
+      var v=r.pr>0?(r.f-r.pr)/r.pr*100:null, es=estados[r.e];
+      return '<tr><td><div class="cliente">'+r.n+
+          (r.ficha?' <a class="ficha" href="'+FICHA+'" target="_blank" rel="noopener">ficha ↗</a>':'')+'</div>'+
+          '<div class="code">'+r.c+' · '+r.p+'</div></td>'+
+        '<td><span class="chip '+es[0]+'"><span class="dot"></span>'+es[1]+'</span></td>'+
+        '<td class="num">'+(r.f?eur(r.f):'—')+'</td>'+
+        '<td class="num '+(v===null?'':(v<0?'neg':'pos'))+'">'+(v===null?'—':pct(v))+'</td>'+
+        '<td class="num">'+dias(r.uf)+'</td>'+
+        '<td class="num'+(r.ua>180?' neg':'')+'">'+dias(r.ua)+'</td>'+
+        '<td class="num">'+(r.pl?eur(r.pl):'—')+'</td></tr>';
+    }).join('')
+    :'<tr><td colspan="7" style="color:var(--ink-muted)">Ningún cliente de tu cartera cumple ese filtro.</td></tr>';
+    var suma=rows.reduce(function(a,r){return a+r.f;},0);
+    document.getElementById('cartfoot').innerHTML=
+      '<span>Mostrando <b>'+rows.length+'</b> de 187 · facturación 12 m de la selección <b>'+mill(suma)+'</b></span>';
+  }
+  document.getElementById('cartfilters').addEventListener('click',function(e){
+    var b=e.target.closest('.filter'); if(!b)return;
+    [].forEach.call(this.children,function(c){c.setAttribute('aria-pressed',String(c===b));});
+    filtro=b.dataset.f; pintaCartera();
+  });
+
+  /* ---- pipeline por etapa ---- */
+  var etapas=[
+    {e:'Identificada',      n:6, imp:1240000, prob:10},
+    {e:'Cualificada',       n:4, imp:980000,  prob:25},
+    {e:'Muestras enviadas', n:3, imp:1420000, prob:40},
+    {e:'Oferta presentada', n:5, imp:2860000, prob:60},
+    {e:'Negociación',       n:2, imp:1180000, prob:80}
+  ];
+  etapas.forEach(function(s){s.pond=Math.round(s.imp*s.prob/100);});
+  var maxImp=Math.max.apply(null,etapas.map(function(s){return s.imp;}));
+  var pipe=document.getElementById('pipe'), ptip=document.getElementById('ptip');
+  pipe.insertAdjacentHTML('beforeend',etapas.map(function(s,i){
+    return '<div class="pipe-row" data-i="'+i+'">'+
+      '<div class="et">'+s.e+'<span class="n">'+s.n+' oportunidades · '+s.prob+' %</span></div>'+
+      '<div class="track">'+
+        '<div class="total" style="width:'+(s.imp/maxImp*100).toFixed(1)+'%"></div>'+
+        '<div class="pond" style="width:'+(s.pond/maxImp*100).toFixed(1)+'%"></div>'+
+      '</div>'+
+      '<div class="val">'+eur(s.pond)+'</div></div>';
+  }).join(''));
+  document.getElementById('pipeTotal').textContent=mill(etapas.reduce(function(a,s){return a+s.imp;},0));
+  document.getElementById('pipePond').textContent=mill(etapas.reduce(function(a,s){return a+s.pond;},0));
+  pipe.addEventListener('mousemove',function(e){
+    var row=e.target.closest('.pipe-row');
+    if(!row){ptip.style.opacity=0;return;}
+    var s=etapas[+row.dataset.i], b=pipe.getBoundingClientRect();
+    ptip.innerHTML='<div class="t">'+s.e+'</div>'+
+      '<div class="r"><span>Oportunidades</span><span>'+s.n+'</span></div>'+
+      '<div class="r"><span>Importe estimado</span><span>'+eur(s.imp)+'</span></div>'+
+      '<div class="r"><span>Probabilidad</span><span>'+s.prob+' %</span></div>'+
+      '<div class="r"><span>Ponderado</span><span>'+eur(s.pond)+'</span></div>';
+    ptip.style.opacity=1;
+    ptip.style.left=Math.min(b.width-186,Math.max(0,e.clientX-b.left-90))+'px';
+    ptip.style.top=(e.clientY-b.top-104)+'px';
+  });
+  pipe.addEventListener('mouseleave',function(){ptip.style.opacity=0;});
+
+  /* ---- tareas: core.Tarea de hoy ---- */
+  var tareas=[
+    ['Preparar propuesta de recuperación 24h Halal M2','Intendencia Militar de Aquitania · vencía ayer','urgente',true,false],
+    ['Enviar el pliego del lote 3 firmado','Reserva Estratégica de Ayuda · hoy','alta',false,false],
+    ['Llamar a Hélène Marchand tras el envío de muestras','Intendencia Militar de Aquitania · hoy','media',false,false],
+    ['Revisar caducidades del BP-5 antes de la oferta','Agencia Humanitaria del Mediterráneo · mañana','media',false,false],
+    ['Confirmar el incoterm del acuerdo 2027','Protección Civil de Valonia · en 3 días','baja',false,false],
+    ['Enviar ficha técnica BP-5 actualizada','Completada el 5 de septiembre','media',false,true]
+  ];
+  var prios={urgente:'chip-crit',alta:'chip-warn',media:'chip-neutral',baja:'chip-neutral'};
+  function pintaTareas(){
+    document.getElementById('tareas').innerHTML=tareas.map(function(t,i){
+      return '<div class="task'+(t[4]?' done':'')+'">'+
+        '<input type="checkbox" id="t'+i+'"'+(t[4]?' checked':'')+' aria-label="'+t[0]+'">'+
+        '<label for="t'+i+'">'+t[0]+'<span class="due'+(t[3]&&!t[4]?' late':'')+'">'+t[1]+'</span></label>'+
+        (t[4]?'':'<span class="chip '+prios[t[2]]+' prio">'+t[2]+'</span>')+'</div>';
+    }).join('');
+    document.getElementById('tareacount').textContent=
+      tareas.filter(function(t){return !t[4];}).length+' abiertas';
+  }
+  document.getElementById('tareas').addEventListener('change',function(e){
+    if(e.target.type!=='checkbox')return;
+    tareas[+e.target.id.slice(1)][4]=e.target.checked; pintaTareas();
+  });
+
+  /* ---- requiere atención ---- */
+  document.getElementById('avisos').innerHTML=[
+    {t:'crit',ic:'!',s:'3 pedidos con la entrega vencida',
+     d:'486.300 € pendientes · el más antiguo lleva 27 días de retraso',a:'Ver pedidos'},
+    {t:'warn',ic:'€',s:'2 presupuestos caducan esta semana',
+     d:'PRE-000148 (Reserva Estratégica) y PRE-000151 (Base Aérea 118)',a:'Revisar'},
+    {t:'warn',ic:'⏱',s:'Licitación con fecha límite el 12 de septiembre',
+     d:'Renovación acuerdo marco 2027 · 840.000 € · falta la oferta técnica',a:'Abrir oportunidad'},
+    {t:'info',ic:'@',s:'12 correos sin empresa asignada',
+     d:'6 son del dominio armees-logistique.fr: registrarlo resuelve la mitad de golpe',a:'Registrar dominio'}
+  ].map(function(v){
+    return '<li><span class="a-icon '+v.t+'" aria-hidden="true">'+v.ic+'</span>'+
+      '<div class="a-body"><strong>'+v.s+'</strong><div class="d">'+v.d+'</div>'+
+      '<div class="act"><button class="btn btn-sm">'+v.a+'</button></div></div></li>';
+  }).join('');
+
+  /* ---- actividad reciente ---- */
+  document.getElementById('timeline').innerHTML=[
+    {ic:'@',cls:'email',s:'RE: Confirmación de plazos lote 2026',w:'hace 2 h',
+     b:'Hélène Marchand · Intendencia Militar de Aquitania',auto:true},
+    {ic:'€',cls:'erp',s:'Factura FV260904',w:'ayer',
+     b:'Logística Sanitaria Internacional · 128.400 € · 5 líneas'},
+    {ic:'R',cls:'email',s:'Reunión de seguimiento trimestral',w:'ayer',
+     b:'Teams · 45 min · Reserva Estratégica de Ayuda',auto:true},
+    {ic:'V',cls:'',s:'Visita a Namur',w:'3 sep',
+     b:'Protección Civil de Valonia · revisión de consumo 2026'},
+    {ic:'€',cls:'erp',s:'Pedido PV260431',w:'2 sep',
+     b:'Reserva Estratégica de Ayuda · 314.900 € · entrega 20/10/2026'}
+  ].map(function(e){
+    return '<li><div class="tl-icon '+e.cls+'" aria-hidden="true">'+e.ic+'</div><div>'+
+      '<div class="tl-head"><strong>'+e.s+'</strong>'+
+      (e.auto?'<span class="tl-tag">registrado automáticamente</span>':'')+
+      '<span class="tl-when">'+e.w+'</span></div>'+
+      '<div class="tl-body">'+e.b+'</div></div></li>';
+  }).join('');
+
+  /* ---- buscador global ---- */
+  var indice=[]
+    .concat(cartera.map(function(r){return {g:'Empresas',n:r.n,m:r.c+' · '+r.p,q:r.n+' '+r.c+' '+r.p};}))
+    .concat([
+      {g:'Contactos',n:'Hélène Marchand',m:'Intendencia Militar de Aquitania',q:'helene marchand hélène aquitania'},
+      {g:'Contactos',n:'Julien Ferrand',m:'Intendencia Militar de Aquitania',q:'julien ferrand aquitania'},
+      {g:'Contactos',n:'Amine Bouzid',m:'Intendencia Militar de Aquitania',q:'amine bouzid aquitania'},
+      {g:'Contactos',n:'Lars Nygaard',m:'Reserva Estratégica de Ayuda',q:'lars nygaard reserva'},
+      {g:'Oportunidades',n:'Renovación acuerdo marco 2027',m:'OPP-000117 · 840.000 €',q:'renovacion renovación acuerdo marco 2027'},
+      {g:'Oportunidades',n:'Lote 3 · raciones halal',m:'OPP-000121 · 315.000 €',q:'lote 3 raciones halal'},
+      {g:'Oportunidades',n:'Suministro de emergencia BP-5',m:'OPP-000124 · 680.000 €',q:'suministro emergencia bp-5 bp5'}
+    ]);
+  var input=document.getElementById('q'), box=document.getElementById('results');
+  function cierra(){box.classList.add('hidden');input.setAttribute('aria-expanded','false');}
+  input.addEventListener('input',function(){
+    busca=input.value.trim().toLowerCase();
+    pintaCartera();
+    if(busca.length<2){cierra();return;}
+    var hits=indice.filter(function(r){return (r.q+' '+r.m).toLowerCase().indexOf(busca)>=0;}).slice(0,9);
+    if(!hits.length){box.innerHTML='<div class="empty">Nada que coincida con «'+input.value+'» en tu cartera.</div>';}
+    else{
+      var out='',g='';
+      hits.forEach(function(r){
+        if(r.g!==g){g=r.g;out+='<div class="rgroup">'+g+'</div>';}
+        out+='<div class="ritem" role="option" tabindex="-1"><span>'+r.n+'</span>'+
+             '<span class="rmeta">'+r.m+'</span></div>';
+      });
+      box.innerHTML=out;
+    }
+    box.classList.remove('hidden'); input.setAttribute('aria-expanded','true');
+  });
+  input.addEventListener('keydown',function(e){if(e.key==='Escape'){input.value='';busca='';pintaCartera();cierra();}});
+  document.addEventListener('click',function(e){if(!e.target.closest('.searchbox'))cierra();});
+
+  pintaCartera(); pintaTareas();
+})();
+</script>
