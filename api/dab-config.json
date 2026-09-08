@@ -1,0 +1,136 @@
+{
+  "$schema": "https://github.com/Azure/data-api-builder/releases/latest/download/dab.draft.schema.json",
+  "data-source": {
+    "database-type": "mssql",
+    "connection-string": "@env('CRM_SQL_CONNSTR')",
+    "options": {
+      "set-session-context": true
+    }
+  },
+  "runtime": {
+    "rest":    { "enabled": true,  "path": "/api" },
+    "graphql": { "enabled": true,  "path": "/graphql", "allow-introspection": false },
+    "host": {
+      "mode": "production",
+      "cors": { "origins": [ "https://crm.jomipsa.es" ], "allow-credentials": true },
+      "authentication": {
+        "provider": "EntraID",
+        "jwt": {
+          "audience": "api://crm-jomipsa",
+          "issuer": "https://login.microsoftonline.com/<TENANT-ID>/v2.0"
+        }
+      }
+    },
+    "cache": { "enabled": true, "ttl-seconds": 30 }
+  },
+  "entities": {
+    "MiCartera": {
+      "source": { "object": "crm_v.MiCartera", "type": "view", "key-fields": [ "CustomerNo" ] },
+      "rest": { "enabled": true }, "graphql": { "enabled": true },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read" ] } ]
+    },
+    "ClienteCabecera": {
+      "source": { "object": "crm_v.ClienteCabecera", "type": "view", "key-fields": [ "CustomerNo" ] },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read" ] } ]
+    },
+    "ClienteArticulos": {
+      "source": { "object": "crm_v.ClienteArticulos", "type": "view", "key-fields": [ "CustomerNo", "ItemNo" ] },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read" ] } ]
+    },
+    "ClienteVentasAnual": {
+      "source": { "object": "crm_v.ClienteVentasAnual", "type": "view", "key-fields": [ "CustomerNo", "Anio" ] },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read" ] } ]
+    },
+    "ClienteVentasMensual": {
+      "source": { "object": "crm_v.ClienteVentasMensual", "type": "view", "key-fields": [ "CustomerNo", "Anio", "Mes" ] },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read" ] } ]
+    },
+    "ClientePedidosAbiertos": {
+      "source": { "object": "crm_v.ClientePedidosAbiertos", "type": "view", "key-fields": [ "PedidoNo", "Linea" ] },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read" ] } ]
+    },
+    "ClienteFacturas": {
+      "source": { "object": "crm_v.ClienteFacturas", "type": "view", "key-fields": [ "DocumentNo" ] },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read" ] } ]
+    },
+    "ClienteCronologia": {
+      "source": { "object": "crm_v.ClienteCronologia", "type": "view", "key-fields": [ "CustomerNo", "Origen", "Referencia" ] },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read" ] } ]
+    },
+    "Pipeline": {
+      "source": { "object": "crm_v.Pipeline", "type": "view", "key-fields": [ "OportunidadId" ] },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read" ] } ]
+    },
+
+    "Oportunidad": {
+      "source": { "object": "crm.Oportunidad", "type": "table" },
+      "permissions": [
+        { "role": "comercial", "actions": [ "read", "create", "update" ] },
+        { "role": "direccion", "actions": [ "read", "create", "update", "delete" ] }
+      ],
+      "relationships": {
+        "lineas":  { "cardinality": "many", "target.entity": "OportunidadLinea" },
+        "empresa": { "cardinality": "one",  "target.entity": "Empresa" }
+      }
+    },
+    "OportunidadLinea": {
+      "source": { "object": "crm.OportunidadLinea", "type": "table" },
+      "permissions": [
+        { "role": "comercial", "actions": [ "read", "create", "update", "delete" ] },
+        { "role": "direccion", "actions": [ "read", "create", "update", "delete" ] }
+      ]
+    },
+    "Empresa": {
+      "source": { "object": "core.Empresa", "type": "table" },
+      "permissions": [
+        { "role": "comercial", "actions": [ "read", "create", "update" ] },
+        { "role": "direccion", "actions": [ "read", "create", "update", "delete" ] }
+      ]
+    },
+    "Contacto": {
+      "source": { "object": "core.Contacto", "type": "table" },
+      "permissions": [
+        { "role": "comercial", "actions": [ "read", "create", "update", "delete" ] },
+        { "role": "direccion", "actions": [ "read", "create", "update", "delete" ] }
+      ]
+    },
+    "Actividad": {
+      "source": { "object": "core.Actividad", "type": "table" },
+      "permissions": [
+        { "role": "comercial", "actions": [ "read", "create", "update", "delete" ] },
+        { "role": "direccion", "actions": [ "read", "create", "update", "delete" ] }
+      ]
+    },
+    "Tarea": {
+      "source": { "object": "core.Tarea", "type": "table" },
+      "permissions": [
+        { "role": "comercial", "actions": [ "read", "create", "update", "delete" ] },
+        { "role": "direccion", "actions": [ "read", "create", "update", "delete" ] }
+      ]
+    },
+    "Etapa": {
+      "source": { "object": "crm.Etapa", "type": "table" },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read", "create", "update" ] } ]
+    },
+    "MotivoPerdida": {
+      "source": { "object": "crm.MotivoPerdida", "type": "table" },
+      "permissions": [ { "role": "comercial", "actions": [ "read" ] },
+                       { "role": "direccion", "actions": [ "read", "create", "update" ] } ]
+    },
+    "Competidor": {
+      "source": { "object": "crm.Competidor", "type": "table" },
+      "permissions": [ { "role": "comercial", "actions": [ "read", "create" ] },
+                       { "role": "direccion", "actions": [ "read", "create", "update" ] } ]
+    }
+  }
+}

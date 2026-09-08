@@ -1,0 +1,13 @@
+# Secretos: nunca en git
+.env
+.env.*
+*.local
+.mcp.json
+
+# Dependencias y compilados
+node_modules/
+dist/
+build/
+
+# Sistema
+.DS_Store
