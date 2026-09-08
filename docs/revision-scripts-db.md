@@ -69,6 +69,27 @@ lleva meses cuadrando, así que el CRM y el informe darán la misma cifra. Como 
 secundario desaparecen los saltos por `DimDate` con `DateSK`, que eran dos joins y una
 tabla no actualizada, y el CRM lee las fechas directamente.
 
+### B-8. La collation de la base de datos es sensible a acentos
+
+Verificado contra el servidor: la base de datos usa
+`Latin1_General_CI_AS_KS_WS` y el catálogo `SQL_Latin1_General_CP1_CI_AS`.
+Dos consecuencias, y ninguna es teórica.
+
+La primera es de fontanería: cualquier consulta que compare una columna de `sys.*` con un
+literal necesita `COLLATE DATABASE_DEFAULT` o el motor responde «Cannot resolve collation
+conflict». Las consultas de verificación tal y como estaban escritas fallaban por esto.
+Corregidas en `db/comprobaciones_previas.sql`.
+
+La segunda afecta al producto: `_AS` significa **sensible a acentos**. `'Belgica'` no es
+igual a `'Bélgica'`. Así que el buscador global de la home no encontrará «Medecins» si el
+cliente está grabado como «Médecins», y el emparejamiento por nombre de la carga inicial
+de contactos fallará en cualquier nombre acentuado —que en una cartera con Francia,
+Bélgica e Italia dentro son muchos. Las comparaciones y búsquedas por nombre necesitan
+`COLLATE Latin1_General_CI_AI` explícito.
+
+No afecta al emparejamiento por email ni por dominio de `core.EmpresaDominio`: es
+insensible a mayúsculas y los emails no llevan acentos.
+
 ### Qué cambia de los hallazgos anteriores
 
 - **M-2 (duplicados por dimensiones tipo 2): resuelto.** El comercial se une ahora

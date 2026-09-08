@@ -206,55 +206,13 @@ GO
 
 /* =====================================================================
    COMPROBACIONES ANTES DE EJECUTAR
-   Ejecutar como usuario de solo lectura. Nada de esto escribe.
+   Están en db/comprobaciones_previas.sql: solo lectura, separadas por GO
+   y con COLLATE DATABASE_DEFAULT donde hace falta. Ejecutarlas y corregir
+   aquí todo lo que salga NO EXISTE antes de aplicar este script.
+
+   Nota de collation, verificada contra el servidor: la base de datos usa
+   Latin1_General_CI_AS_KS_WS y el catálogo SQL_Latin1_General_CP1_CI_AS.
+   Comparar una columna de sys.* con un literal sin COLLATE DATABASE_DEFAULT
+   da «Cannot resolve collation conflict».
    ===================================================================== */
-/*
--- 1. ¿Qué objetos de gold son vistas y cuáles tablas? Si algo que
---    usamos sale como USER_TABLE, no se puede usar.
-SELECT o.name, o.type_desc
-FROM sys.objects o
-WHERE o.schema_id = SCHEMA_ID('gold')
-  AND o.name IN (N'vw_FactMargenLineaFactura', N'vw_ProductUnitCost',
-                 N'DimCustomer', N'DimSalesperson', N'DimProduct', N'DimDate',
-                 N'DimLocation', N'FactSalesOrderLine', N'InventorySnapshotCurrent')
-ORDER BY o.type_desc, o.name;
-
--- 2. Nombres reales de las columnas que este script marca CONFIRMAR.
-SELECT t.name AS Tabla, c.name AS Columna, ty.name AS Tipo, c.max_length
-FROM sys.columns c
-JOIN sys.objects t ON t.object_id = c.object_id
-JOIN sys.types  ty ON ty.user_type_id = c.user_type_id
-WHERE t.schema_id = SCHEMA_ID('bc')
-  AND t.name IN (N'Customer', N'Item', N'Sales Line', N'Sales Header',
-                 N'Salesperson_Purchaser', N'Salesperson/Purchaser',
-                 N'Item Ledger Entry')
-ORDER BY t.name, c.column_id;
-
--- 3. ¿Cuántas empresas hay en bc y hay códigos de cliente repetidos
---    entre ellas? Si el segundo SELECT devuelve filas, hay que filtrar
---    crm_v.ErpCompania o el CRM contará clientes dos veces.
-SELECT [$company] AS Compania, COUNT(*) AS Clientes
-FROM bc.[Customer] GROUP BY [$company] ORDER BY Clientes DESC;
-
-SELECT [No.] AS CustomerNo, COUNT(DISTINCT [$company]) AS Empresas
-FROM bc.[Customer] GROUP BY [No.] HAVING COUNT(DISTINCT [$company]) > 1;
-
--- 4. La cartera según bc frente a la que decía gold.DimCustomer.
---    Toda diferencia aquí es un cliente que el comercial equivocado
---    estaba viendo (o dejando de ver).
-SELECT TOP 50 c.CustomerNo, c.CustomerName, c.SalespersonCode
-FROM crm_v.ErpCliente c
-WHERE c.SalespersonCode IS NULL OR c.SalespersonCode = N''
-ORDER BY c.CustomerNo;
-
-SELECT c.SalespersonCode, COUNT(*) AS Clientes
-FROM crm_v.ErpCliente c
-GROUP BY c.SalespersonCode
-ORDER BY Clientes DESC;
-
--- 5. Cartera de pedidos por la capa base. Debe cuadrar con la hoja
---    "Cartera de Pedidos" del informe mensual de ventas.
-SELECT COUNT(*) AS LineasVivas, SUM(ImportePendiente) AS Importe
-FROM crm_v.ErpPedidoLinea WHERE EsAbierta = 1;
-*/
 GO

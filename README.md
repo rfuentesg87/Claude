@@ -20,6 +20,11 @@ db/06_presupuestos_pedidos.sql
 
 El `00` va después del `01` (necesita el esquema `crm_v`) y antes del `02`.
 
+Antes de aplicar nada, ejecutar [`db/comprobaciones_previas.sql`](db/comprobaciones_previas.sql):
+son consultas de solo lectura que confirman qué objetos de `gold` son vistas, los nombres
+reales de columna de `bc`, el propietario de cada esquema y si `bc` tiene clientes
+repetidos entre empresas.
+
 Ninguno se ha ejecutado todavía. Revisar antes de aplicar: la base de datos es de
 producción y la comparten los pipelines de datos y los paneles ya en marcha. La
 revisión crítica de los scripts está en [`docs/revision-scripts-db.md`](docs/revision-scripts-db.md).
